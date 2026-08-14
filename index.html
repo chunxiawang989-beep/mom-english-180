@@ -102,7 +102,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
   <div class="top">
     <div class="brand">
       <h1>妈妈英语·180天</h1>
-      <p>独立APP V10 · 丰富句型 · 180天 × 每天18句</p>
+      <p>独立APP V11 · 自然美音 · 180天 × 每天18句</p>
       <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
     </div>
     <div class="top-actions">
@@ -152,7 +152,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
     <div class="card">
       <h3 class="section-title">朗读训练</h3>
-      <div class="hint"><b>V10分包朗读：</b>默认句配有APP内置课程音频，按当前主题类别加载小音频包；不依赖华为系统TTS。自定义句优先尝试在线语音。</div>
+      <div class="hint"><b>V11自然朗读：</b>联网时优先使用自然英文在线发音；失败时自动切换另一在线通道；只有两种在线发音都不可用时，才退回APP内置离线音频。离线音频稳定但音色较机械，仅作为兜底。</div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
         <label class="small muted">速度
@@ -164,9 +164,10 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
         </label>
         <label class="small muted">朗读
           <select id="speechEngine" style="width:auto;padding:7px">
-            <option value="course" selected>课程内置音频（推荐）</option>
-            <option value="system">系统语音（备用）</option>
-            <option value="online">在线语音（自定义句备用）</option>
+            <option value="natural" selected>自然英文（推荐）</option>
+            <option value="baidu">国内网络英文</option>
+            <option value="google">en-US 美音</option>
+            <option value="course">本地离线（备用）</option>
           </select>
         </label>
       </div>
@@ -176,18 +177,19 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
       <div class="row space">
         <div>
           <h3 class="section-title" style="margin-bottom:2px">朗读自检</h3>
-          <div class="tiny muted">直接显示手机当前是否具备播放条件</div>
+          <div class="tiny muted">在线自然音 + 本地备用音的播放状态</div>
         </div>
         <button class="btn sm" id="audioRetryBtn">重新加载音频</button>
       </div>
       <div class="grid" style="margin-top:8px">
+        <div class="stat"><b id="naturalVoiceStatus">待试听</b><span>自然在线音</span></div>
         <div class="stat"><b id="audioFileStatus">检查中</b><span>课程音频文件</span></div>
         <div class="stat"><b id="audioMapStatus">检查中</b><span>音频映射表</span></div>
         <div class="stat"><b id="webAudioStatus">检查中</b><span>Web Audio</span></div>
         <div class="stat"><b id="ttsStatus">检查中</b><span>系统TTS</span></div>
         <div class="stat"><b id="audioContextStatus">检查中</b><span>音频上下文</span></div>
       </div>
-      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试一句：Good morning, sleepyhead.</button>
+      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 试听自然音：Good morning, sleepyhead.</button>
       <div id="audioDiagnosticText" class="hint" style="margin-top:10px">正在初始化朗读模块……</div>
     </div>
   </section>
@@ -341,7 +343,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 <div class="toast hidden" id="toast"></div>
 
 <script src="./daily180.js?v=10.0"></script>
-<script src="./audio-map.js?v=10.0"></script>
-<script src="./app.js?v=10.0"></script>
+<script src="./audio-map.js?v=11.0"></script>
+<script src="./app.js?v=11.0"></script>
 </body>
 </html>

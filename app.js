@@ -132,7 +132,7 @@ function getRate(){
 }
 function getEngine(){
   var el=$("speechEngine");
-  return el ? el.value : "course";
+  return el ? el.value : "natural";
 }
 function setStatus(id,text,good){
   var el=$(id); if(!el)return;
@@ -177,7 +177,7 @@ function loadAudioPack(file,force){
   diagnostic("正在加载当前场景课程音频……");
   var ctx=getAudioContext();
   if(!ctx)return Promise.reject(new Error("no-audio-context"));
-  courseAudioPromises[file]=fetch("./"+file+"?v=10.0",{cache:"no-store"})
+  courseAudioPromises[file]=fetch("./"+file+"?v=11.0",{cache:"no-store"})
     .then(function(resp){if(!resp.ok)throw new Error("audio-http-"+resp.status);return resp.arrayBuffer();})
     .then(function(ab){return ctx.decodeAudioData(ab.slice(0));})
     .then(function(buf){courseAudioBuffers[file]=buf;setStatus("audioFileStatus","已就绪",true);diagnostic("当前场景音频已就绪。");return buf;})
@@ -216,43 +216,97 @@ function playSystem(text){
   });
 }
 
-function playOnline(text){
+function playRemoteAudio(url, providerName){
   return new Promise(function(resolve,reject){
     try{
-      if(onlineAudio){onlineAudio.pause();onlineAudio=null;}
-      var a=new Audio("https://dict.youdao.com/dictvoice?type=0&audio="+encodeURIComponent(text));
-      onlineAudio=a;a.playbackRate=getRate();
-      var timer=setTimeout(function(){try{a.pause();}catch(e){}reject(new Error("online-timeout"));},7000);
-      a.onended=function(){clearTimeout(timer);onlineAudio=null;resolve();};
-      a.onerror=function(){clearTimeout(timer);onlineAudio=null;reject(new Error("online-failed"));};
+      if(onlineAudio){try{onlineAudio.pause();}catch(e){} onlineAudio=null;}
+      var a=new Audio();
+      onlineAudio=a;
+      a.preload="auto";
+      a.playbackRate=getRate();
+      var settled=false;
+      var timer=setTimeout(function(){
+        if(settled)return;
+        settled=true;
+        try{a.pause();}catch(e){}
+        reject(new Error(providerName+"-timeout"));
+      },6500);
+      function ok(){
+        if(settled)return;
+        settled=true;
+        clearTimeout(timer);
+        onlineAudio=null;
+        setStatus("naturalVoiceStatus",providerName+"可用",true);
+        resolve();
+      }
+      function bad(){
+        if(settled)return;
+        settled=true;
+        clearTimeout(timer);
+        onlineAudio=null;
+        reject(new Error(providerName+"-failed"));
+      }
+      a.onended=ok;
+      a.onerror=bad;
+      a.src=url;
       var p=a.play();
-      if(p&&p.catch)p.catch(function(e){clearTimeout(timer);reject(e);});
+      if(p&&p.catch)p.catch(bad);
     }catch(e){reject(e);}
+  });
+}
+
+function baiduTtsUrl(text){
+  return "https://fanyi.baidu.com/gettts?lan=en&text="+encodeURIComponent(text)+"&spd=3&source=web";
+}
+
+function googleUsTtsUrl(text){
+  return "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-US&q="+encodeURIComponent(text);
+}
+
+function playBaiduNatural(text){
+  return playRemoteAudio(baiduTtsUrl(text),"自然英文");
+}
+
+function playGoogleUS(text){
+  return playRemoteAudio(googleUsTtsUrl(text),"en-US");
+}
+
+function playNatural(text){
+  // Mainland-China-friendly path first; if unavailable, try explicit en-US.
+  return playBaiduNatural(text).catch(function(){
+    return playGoogleUS(text);
   });
 }
 
 function speakAsync(text){
   var mode=getEngine();
-  if(mode==="system"){
-    return playSystem(text).catch(function(){
-      showToast("系统TTS不可用，已尝试课程内置音频。");
+
+  if(mode==="baidu"){
+    return playBaiduNatural(text).catch(function(){
+      showToast("在线自然音暂时不可用，已切换本地备用音。");
       return playCourseAudio(text);
     });
   }
-  if(mode==="online"){
-    return playOnline(text).catch(function(){
-      return playCourseAudio(text).catch(function(){
-        showToast("这句是自定义句，在线语音失败，且不在课程内置音频中。");
-      });
+
+  if(mode==="google"){
+    return playGoogleUS(text).catch(function(){
+      showToast("en-US在线音暂时不可用，已切换本地备用音。");
+      return playCourseAudio(text);
     });
   }
-  // Default: course audio only; no external dependency for standard phrases.
-  return playCourseAudio(text).catch(function(err){
-    if(err && err.message==="no-course-clip"){
-      return playOnline(text).catch(function(){return playSystem(text);});
-    }
-    showToast("课程音频尚未就绪，请看下方“朗读自检”。");
-    throw err;
+
+  if(mode==="course"){
+    return playCourseAudio(text);
+  }
+
+  // Default V11: online natural voice -> second online provider -> local offline fallback.
+  return playNatural(text).catch(function(){
+    setStatus("naturalVoiceStatus","在线失败",false);
+    diagnostic("在线自然音当前不可用，正在使用本地备用音。");
+    return playCourseAudio(text).catch(function(err){
+      showToast("在线与本地朗读均失败，请查看朗读自检。");
+      throw err;
+    });
   });
 }
 
@@ -260,6 +314,7 @@ function speak(text){ return speakAsync(text); }
 window.speakPhrase=speak;
 
 function initAudioDiagnostics(){
+  setStatus("naturalVoiceStatus","待试听",null);
   var map=(typeof AUDIO_MAP!=="undefined" && AUDIO_MAP) ? AUDIO_MAP : (window.APP_AUDIO_MAP||{});
   var mapCount=Object.keys(map).length;
   var testText=(DAILY180[0]&&DAILY180[0].phrases&&DAILY180[0].phrases[0])?DAILY180[0].phrases[0][0]:"Good morning, sleepyhead.";
@@ -734,7 +789,7 @@ function bind(){
       var t=(DAILY180[0]&&DAILY180[0].phrases&&DAILY180[0].phrases[0])?DAILY180[0].phrases[0][0]:"Good morning, sleepyhead.";
       return speakAsync(t);
     }).then(function(){
-      diagnostic("测试播放完成。如果您听到了测试句，朗读模块已经正常。");
+      diagnostic("试听完成。如果声音自然清晰，日常保持“自然英文（推荐）”即可；若在线失败会自动切换本地备用音。");
     }).catch(function(err){
       diagnostic("测试失败："+(err&&err.message?err.message:"未知错误")+"。请截图这一行给我。");
     });
