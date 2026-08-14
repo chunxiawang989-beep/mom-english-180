@@ -7,6 +7,11 @@ var KEY = "momEnglish180_standalone_v4";
 var BASE = window.APP_BASE_PHRASES || {};
 var GENERIC = window.APP_GENERIC_PHRASES || {};
 var AUDIO_MAP = window.APP_AUDIO_MAP || {};
+var AZURE_CFG_KEY="momEnglishAzureSpeechV13";
+var TTS_DB_NAME="momEnglishNeuralTtsV13";
+var TTS_DB_STORE="mp3";
+var azureCurrentAudio=null;
+
 var DAILY180 = window.APP_DAILY180 || [];
 var DK_LIBRARY = window.APP_DK_LIBRARY || [];
 var OLD_KEYS = ["momEnglish180_standalone_v3","momEnglish180_v1"];
@@ -132,7 +137,7 @@ function getRate(){
 }
 function getEngine(){
   var el=$("speechEngine");
-  return el ? el.value : "standard";
+  return el ? el.value : "azure";
 }
 function setStatus(id,text,good){
   var el=$(id); if(!el)return;
@@ -177,7 +182,7 @@ function loadAudioPack(file,force){
   diagnostic("正在加载当前场景课程音频……");
   var ctx=getAudioContext();
   if(!ctx)return Promise.reject(new Error("no-audio-context"));
-  courseAudioPromises[file]=fetch("./"+file+"?v=12.0",{cache:"no-store"})
+  courseAudioPromises[file]=fetch("./"+file+"?v=13.0",{cache:"no-store"})
     .then(function(resp){if(!resp.ok)throw new Error("audio-http-"+resp.status);return resp.arrayBuffer();})
     .then(function(ab){return ctx.decodeAudioData(ab.slice(0));})
     .then(function(buf){courseAudioBuffers[file]=buf;setStatus("audioFileStatus","已就绪",true);diagnostic("当前场景音频已就绪。");return buf;})
@@ -217,108 +222,211 @@ function playSystem(text){
 }
 
 
-function splitForStandardVoice(text){
-  var clean=String(text||"").trim();
-  if(clean.length<=105)return [clean];
 
-  // Keep natural pauses first.
-  var parts=clean.split(/(?<=[,.!?;:])\s+/).filter(Boolean);
-  var chunks=[],buf="";
-  parts.forEach(function(part){
-    if(!buf){buf=part;return;}
-    if((buf+" "+part).length<=105){buf+=" "+part;}
-    else{chunks.push(buf);buf=part;}
+function getAzureCfg(){
+  try{
+    var x=JSON.parse(localStorage.getItem(AZURE_CFG_KEY)||"{}");
+    return {
+      key:x.key||"",
+      region:x.region||"",
+      voice:x.voice||"en-US-JennyNeural"
+    };
+  }catch(e){
+    return {key:"",region:"",voice:"en-US-JennyNeural"};
+  }
+}
+
+function saveAzureCfg(cfg){
+  localStorage.setItem(AZURE_CFG_KEY,JSON.stringify(cfg));
+}
+
+function ttsCacheKey(text,cfg){
+  return cfg.voice+"|48k192|"+normalize(text);
+}
+
+function openTtsDb(){
+  return new Promise(function(resolve,reject){
+    if(!window.indexedDB){reject(new Error("indexeddb-unsupported"));return;}
+    var req=indexedDB.open(TTS_DB_NAME,1);
+    req.onupgradeneeded=function(){
+      var db=req.result;
+      if(!db.objectStoreNames.contains(TTS_DB_STORE)){
+        db.createObjectStore(TTS_DB_STORE);
+      }
+    };
+    req.onsuccess=function(){resolve(req.result);};
+    req.onerror=function(){reject(req.error||new Error("indexeddb-open-failed"));};
   });
-  if(buf)chunks.push(buf);
+}
 
-  // Very long clause: split by words while preserving word order.
-  var final=[];
-  chunks.forEach(function(chunk){
-    if(chunk.length<=105){final.push(chunk);return;}
-    var words=chunk.split(/\s+/),b="";
-    words.forEach(function(w){
-      if(!b)b=w;
-      else if((b+" "+w).length<=95)b+=" "+w;
-      else{final.push(b);b=w;}
+function cacheGet(key){
+  return openTtsDb().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(TTS_DB_STORE,"readonly");
+      var req=tx.objectStore(TTS_DB_STORE).get(key);
+      req.onsuccess=function(){resolve(req.result||null);};
+      req.onerror=function(){reject(req.error);};
     });
-    if(b)final.push(b);
   });
-  return final.filter(Boolean);
 }
 
-function standardVoiceUrl(text){
-  // This is the same English voice path used for the "Open your eyes." reference.
-  return "https://fanyi.baidu.com/gettts?lan=en&text="+encodeURIComponent(text)+"&spd=3&source=web";
+function cachePut(key,arrayBuffer){
+  return openTtsDb().then(function(db){
+    return new Promise(function(resolve,reject){
+      var tx=db.transaction(TTS_DB_STORE,"readwrite");
+      tx.objectStore(TTS_DB_STORE).put(arrayBuffer,key);
+      tx.oncomplete=function(){resolve();};
+      tx.onerror=function(){reject(tx.error);};
+    });
+  });
 }
 
-function playOneStandardChunk(text){
+function clearNeuralCache(){
+  return new Promise(function(resolve,reject){
+    var req=indexedDB.deleteDatabase(TTS_DB_NAME);
+    req.onsuccess=function(){resolve();};
+    req.onerror=function(){reject(req.error);};
+    req.onblocked=function(){resolve();};
+  });
+}
+
+function playMp3Buffer(buf){
   return new Promise(function(resolve,reject){
     try{
-      if(onlineAudio){try{onlineAudio.pause();}catch(e){} onlineAudio=null;}
-      var a=new Audio();
-      onlineAudio=a;
-      a.preload="auto";
+      if(azureCurrentAudio){try{azureCurrentAudio.pause();}catch(e){}}
+      var blob=new Blob([buf],{type:"audio/mpeg"});
+      var url=URL.createObjectURL(blob);
+      var a=new Audio(url);
+      azureCurrentAudio=a;
       a.playbackRate=getRate();
-
-      var done=false;
-      var timer=setTimeout(function(){
-        if(done)return; done=true;
-        try{a.pause();}catch(e){}
-        onlineAudio=null;
-        reject(new Error("standard-voice-timeout"));
-      },9000);
-
-      function success(){
-        if(done)return; done=true;
-        clearTimeout(timer);
-        onlineAudio=null;
-        setStatus("naturalVoiceStatus","标准美音可用",true);
+      a.onended=function(){
+        URL.revokeObjectURL(url);
+        azureCurrentAudio=null;
         resolve();
-      }
-      function fail(){
-        if(done)return; done=true;
-        clearTimeout(timer);
-        onlineAudio=null;
-        reject(new Error("standard-voice-failed"));
-      }
-
-      a.onended=success;
-      a.onerror=fail;
-      a.src=standardVoiceUrl(text);
+      };
+      a.onerror=function(){
+        URL.revokeObjectURL(url);
+        azureCurrentAudio=null;
+        reject(new Error("mp3-playback-failed"));
+      };
       var p=a.play();
-      if(p&&p.catch)p.catch(fail);
+      if(p&&p.catch)p.catch(reject);
     }catch(e){reject(e);}
   });
 }
 
-function playStandardVoice(text){
-  var chunks=splitForStandardVoice(text),i=0;
-  function next(){
-    if(i>=chunks.length)return Promise.resolve();
-    return playOneStandardChunk(chunks[i++]).then(function(){
-      return new Promise(function(r){setTimeout(r,110);});
-    }).then(next);
+function synthesizeAzureMp3(text){
+  var cfg=getAzureCfg();
+  if(!cfg.key||!cfg.region){
+    return Promise.reject(new Error("azure-not-configured"));
   }
-  return next();
+  if(!window.SpeechSDK){
+    return Promise.reject(new Error("azure-sdk-not-loaded"));
+  }
+
+  return new Promise(function(resolve,reject){
+    try{
+      var speechConfig=SpeechSDK.SpeechConfig.fromSubscription(cfg.key,cfg.region);
+      speechConfig.speechSynthesisVoiceName=cfg.voice;
+      speechConfig.speechSynthesisOutputFormat=
+        SpeechSDK.SpeechSynthesisOutputFormat.Audio48Khz192KBitRateMonoMp3;
+
+      var synth=new SpeechSDK.SpeechSynthesizer(speechConfig,null);
+      synth.speakTextAsync(
+        text,
+        function(result){
+          try{synth.close();}catch(e){}
+          if(result.reason===SpeechSDK.ResultReason.SynthesizingAudioCompleted){
+            var data=result.audioData;
+            var copy=data.slice ? data.slice(0) : data;
+            resolve(copy);
+          }else{
+            reject(new Error("azure-synthesis-"+result.reason));
+          }
+        },
+        function(err){
+          try{synth.close();}catch(e){}
+          reject(new Error(String(err)));
+        }
+      );
+    }catch(e){reject(e);}
+  });
+}
+
+function getNeuralMp3(text){
+  var cfg=getAzureCfg();
+  var key=ttsCacheKey(text,cfg);
+  return cacheGet(key).then(function(cached){
+    if(cached)return cached;
+    $("azureStatus").textContent="正在生成神经美音MP3："+text;
+    return synthesizeAzureMp3(text).then(function(buf){
+      return cachePut(key,buf).then(function(){
+        $("azureStatus").textContent="神经美音MP3已生成并缓存。";
+        return buf;
+      });
+    });
+  });
+}
+
+function playAzureNeural(text){
+  return getNeuralMp3(text).then(playMp3Buffer);
 }
 
 function speakAsync(text){
   var mode=getEngine();
 
   if(mode==="course"){
-    return playCourseAudio(text).catch(function(err){
-      showToast("这句话没有本地离线音频。请切回“标准美音”。");
-      throw err;
-    });
+    return playCourseAudio(text);
   }
 
-  // V12: never silently change the voice.
-  return playStandardVoice(text).catch(function(err){
-    setStatus("naturalVoiceStatus","标准美音加载失败",false);
-    diagnostic("标准美音当前没有成功加载。请检查网络后重试；为了保持声音一致，APP不会自动切换成机械音。");
-    showToast("标准美音加载失败，请检查网络后重试。");
+  return playAzureNeural(text).catch(function(err){
+    if(err&&err.message==="azure-not-configured"){
+      showToast("请先在“设置”里填写 Azure Speech Key 和 Region。");
+      switchView("settings");
+    }else if(err&&err.message==="azure-sdk-not-loaded"){
+      showToast("Microsoft Speech SDK未加载，请检查网络后重试。");
+    }else{
+      showToast("神经美音生成失败："+(err&&err.message?err.message:"未知错误"));
+    }
     throw err;
   });
+}
+
+function loadAzureSettingsUi(){
+  var cfg=getAzureCfg();
+  if($("azureSpeechKey"))$("azureSpeechKey").value=cfg.key||"";
+  if($("azureSpeechRegion"))$("azureSpeechRegion").value=cfg.region||"";
+  if($("azureVoiceName"))$("azureVoiceName").value=cfg.voice||"en-US-JennyNeural";
+  if($("azureStatus")){
+    $("azureStatus").textContent=(cfg.key&&cfg.region)
+      ?"神经美音已配置："+cfg.voice+" · "+cfg.region
+      :"尚未配置 Azure Speech。";
+  }
+}
+
+function cacheTodayNeural(){
+  var cfg=getAzureCfg();
+  if(!cfg.key||!cfg.region){
+    showToast("请先保存 Azure Speech Key 和 Region。");return;
+  }
+  var ss=dayData().sentences||[];
+  if(!ss.length){showToast("今天没有句子。");return;}
+  var i=0,ok=0;
+  function next(){
+    if(i>=ss.length){
+      $("azureStatus").textContent="今日神经美音缓存完成："+ok+"/"+ss.length+"句。";
+      showToast("今日18句高品质MP3缓存完成。");
+      return;
+    }
+    var text=ss[i++].en;
+    $("azureStatus").textContent="正在生成 "+i+"/"+ss.length+"："+text;
+    getNeuralMp3(text).then(function(){
+      ok++;setTimeout(next,180);
+    }).catch(function(err){
+      $("azureStatus").textContent="第"+i+"句生成失败："+err.message;
+    });
+  }
+  next();
 }
 
 function speak(text){ return speakAsync(text); }
@@ -805,7 +913,37 @@ function bind(){
       diagnostic("测试失败："+(err&&err.message?err.message:"未知错误")+"。请截图这一行给我。");
     });
   });
-  $("installBtn2").addEventListener("click",function(){window.installEnglishApp();});
+  
+  $("saveAzureBtn").addEventListener("click",function(){
+    var cfg={
+      key:$("azureSpeechKey").value.trim(),
+      region:$("azureSpeechRegion").value.trim(),
+      voice:$("azureVoiceName").value
+    };
+    if(!cfg.key||!cfg.region){showToast("Key和Region都需要填写。");return;}
+    saveAzureCfg(cfg);
+    $("azureStatus").textContent="已保存："+cfg.voice+" · "+cfg.region;
+    showToast("神经美音设置已保存到本机。");
+  });
+
+  $("testAzureBtn").addEventListener("click",function(){
+    $("azureStatus").textContent="正在生成测试MP3：Open your eyes.";
+    playAzureNeural("Open your eyes.").then(function(){
+      $("azureStatus").textContent="测试成功：JennyNeural 48kHz / 192kbps MP3。";
+    }).catch(function(){});
+  });
+
+  $("cacheTodayBtn").addEventListener("click",cacheTodayNeural);
+
+  $("clearTtsCacheBtn").addEventListener("click",function(){
+    if(!confirm("确定清空已经生成的神经语音MP3缓存？"))return;
+    clearNeuralCache().then(function(){
+      $("azureStatus").textContent="神经语音缓存已清空。";
+      showToast("缓存已清空。");
+    });
+  });
+
+$("installBtn2").addEventListener("click",function(){window.installEnglishApp();});
   $("closeInstallModalBtn").addEventListener("click",function(){$("installModal").classList.add("hidden");});
   $("copyUrlBtn").addEventListener("click",function(){
     var url=location.href.split("#")[0];

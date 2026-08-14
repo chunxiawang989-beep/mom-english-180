@@ -96,13 +96,14 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
   });
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@latest/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js"></script>
 </head>
 <body>
 <div class="app">
   <div class="top">
     <div class="brand">
       <h1>妈妈英语·180天</h1>
-      <p>独立APP V12 · 统一标准美音 · 180天 × 每天18句</p>
+      <p>独立APP V13 · 神经美音MP3 · 180天 × 每天18句</p>
       <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
     </div>
     <div class="top-actions">
@@ -152,7 +153,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
     <div class="card">
       <h3 class="section-title">朗读训练</h3>
-      <div class="hint"><b>V12统一发音标准：</b>所有课程句、您自己新增的句子、单句播放和连续播放，默认全部使用与 Day 1「Open your eyes.」相同的标准美音。长句会自动分段，但音色不变。网络失败时不会自动切成机械音；只有您手动选择“本地离线（仅应急）”才使用离线音。</div>
+      <div class="hint"><b>V13神经美音：</b>默认使用 Microsoft Azure Speech 的 en-US-JennyNeural，生成 48 kHz / 192 kbps MP3。首次播放时在线生成并缓存到手机，之后直接播放缓存，不再使用机械 eSpeak 作为默认声音。</div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
         <label class="small muted">速度
@@ -164,8 +165,8 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
         </label>
         <label class="small muted">朗读
           <select id="speechEngine" style="width:auto;padding:7px">
-            <option value="standard" selected>标准美音（Open your eyes 同款）</option>
-            <option value="course">本地离线（仅应急）</option>
+            <option value="azure" selected>Jenny神经美音 48k/192k（推荐）</option>
+            <option value="course">本地机械音（仅应急）</option>
           </select>
         </label>
       </div>
@@ -306,6 +307,40 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
       <div class="row" style="margin-top:12px"><button class="btn" id="exportBackupBtn">导出备份</button><label class="btn" for="importBackupInput">导入备份</label><input type="file" id="importBackupInput" accept=".json" class="hidden"><button class="btn danger" id="resetBtn">清空数据</button></div>
       <div class="hint" style="margin-top:12px">数据存储在当前手机浏览器/PWA本地。建议每周导出一次JSON备份。</div>
     </div>
+    
+    <div class="card">
+      <h3 class="section-title">高品质神经美音设置</h3>
+      <div class="hint">
+        本APP使用 Microsoft Azure Speech 神经语音。Key 只保存在当前手机浏览器本地，不写入GitHub。<b>不要把Key发到聊天里，也不要提交到GitHub。</b>
+      </div>
+      <label class="small" style="display:block;margin-top:10px">
+        Azure Speech Key
+        <input id="azureSpeechKey" type="password" autocomplete="off" placeholder="粘贴您自己的 Speech Key">
+      </label>
+      <label class="small" style="display:block;margin-top:10px">
+        Azure Region
+        <input id="azureSpeechRegion" type="text" placeholder="例如 eastus">
+      </label>
+      <label class="small" style="display:block;margin-top:10px">
+        美音音色
+        <select id="azureVoiceName">
+          <option value="en-US-JennyNeural" selected>JennyNeural｜标准美音女声</option>
+          <option value="en-US-AvaMultilingualNeural">AvaMultilingualNeural｜自然美音女声</option>
+          <option value="en-US-EmmaNeural">EmmaNeural｜清晰美音女声</option>
+          <option value="en-US-BrianNeural">BrianNeural｜标准美音男声</option>
+        </select>
+      </label>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="saveAzureBtn">保存语音设置</button>
+        <button class="btn" id="testAzureBtn">▶ 测试 Jenny：Open your eyes.</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="cacheTodayBtn">生成并缓存今日18句</button>
+        <button class="btn danger" id="clearTtsCacheBtn">清空神经语音缓存</button>
+      </div>
+      <div id="azureStatus" class="hint" style="margin-top:10px">尚未配置 Azure Speech。</div>
+    </div>
+
     <div class="card">
       <h3 class="section-title">安装状态</h3>
       <button class="btn install block" id="installBtn2">安装到手机桌面</button>
@@ -341,7 +376,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 <div class="toast hidden" id="toast"></div>
 
 <script src="./daily180.js?v=10.0"></script>
-<script src="./audio-map.js?v=12.0"></script>
-<script src="./app.js?v=12.0"></script>
+<script src="./audio-map.js?v=13.0"></script>
+<script src="./app.js?v=13.0"></script>
 </body>
 </html>

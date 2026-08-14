@@ -1,6 +1,6 @@
 const PREFIX='mom-english-standalone-';
-const CACHE=PREFIX+'v12.0';
-const ASSETS=['./','./index.html','./daily180.js?v=10.0','./audio-map.js?v=12.0','./app.js?v=12.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE=PREFIX+'v13.0';
+const ASSETS=['./','./index.html','./daily180.js?v=10.0','./audio-map.js?v=13.0','./app.js?v=13.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
