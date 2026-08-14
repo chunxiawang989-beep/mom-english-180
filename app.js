@@ -107,7 +107,7 @@ function switchView(name){
   var v=$("view-"+name); if(v)v.classList.remove("hidden");
   qsa(".tab").forEach(function(t){t.classList.toggle("active",t.getAttribute("data-view")===name);});
   if(name==="review") renderReview();
-  if(name==="library") renderLibrary();
+  if(name==="library"){ renderLibrary(); renderPatternMap(); }
   if(name==="vocab") renderVocab();
   if(name==="stats") renderStats();
   if(name==="calendar") renderCalendar();
@@ -177,7 +177,7 @@ function loadAudioPack(file,force){
   diagnostic("正在加载当前场景课程音频……");
   var ctx=getAudioContext();
   if(!ctx)return Promise.reject(new Error("no-audio-context"));
-  courseAudioPromises[file]=fetch("./"+file+"?v=9.0",{cache:"no-store"})
+  courseAudioPromises[file]=fetch("./"+file+"?v=10.0",{cache:"no-store"})
     .then(function(resp){if(!resp.ok)throw new Error("audio-http-"+resp.status);return resp.arrayBuffer();})
     .then(function(ab){return ctx.decodeAudioData(ab.slice(0));})
     .then(function(buf){courseAudioBuffers[file]=buf;setStatus("audioFileStatus","已就绪",true);diagnostic("当前场景音频已就绪。");return buf;})
@@ -262,7 +262,8 @@ window.speakPhrase=speak;
 function initAudioDiagnostics(){
   var map=(typeof AUDIO_MAP!=="undefined" && AUDIO_MAP) ? AUDIO_MAP : (window.APP_AUDIO_MAP||{});
   var mapCount=Object.keys(map).length;
-  var testKey=audioKey("Let\'s wake up gently.");
+  var testText=(DAILY180[0]&&DAILY180[0].phrases&&DAILY180[0].phrases[0])?DAILY180[0].phrases[0][0]:"Good morning, sleepyhead.";
+  var testKey=audioKey(testText);
   var mapOK=mapCount>0 && !!map[testKey];
   setStatus("audioMapStatus",mapOK?(mapCount+"句"):"缺失",mapOK);
   if(!mapOK){
@@ -314,7 +315,9 @@ function renderToday(){
   $("sourceBadge").textContent=c.categoryEn||"180天口语";
   $("topicZh").textContent=c.topicZh;
   $("topicEn").textContent=c.topicEn;
-  $("topicGoal").textContent="每天一个独立场景；同主题句子集中学习";
+  $("topicGoal").textContent="同一主题集中学习18句：场景口语 + 多样父母表达 + 孩子可说";
+  $("topicReference").textContent=c.reference||"";
+  renderPatternSummary(c);
   $("dayDate").textContent=dateForDay(n);
   $("dayProgressText").textContent=mastered+"/"+target+" 句熟练朗读";
   $("dayProgressBar").style.width=Math.min(100,mastered/target*100)+"%";
@@ -329,12 +332,23 @@ function renderToday(){
   renderDictation();
 }
 
+function renderPatternSummary(c){
+  var box=$("patternSummary");if(!box)return;
+  var ps=(c&&c.patterns)||[];
+  box.innerHTML=ps.length?ps.map(function(p){
+    return '<div style="padding:9px 0;border-bottom:1px solid #eef0f3">'+
+      '<div class="row space"><b>'+esc(p.formula)+'</b><span class="badge">'+esc(p.tag||p.meaning)+'</span></div>'+
+      '<div class="small" style="margin-top:4px">'+esc(p.example)+'</div>'+
+      '<div class="tiny muted">'+esc(p.meaning)+'</div></div>';
+  }).join(""):'<div class="hint">今天暂无句型总结。</div>';
+}
+
 function renderSentenceList(){
   var d=dayData(), box=$("sentenceList");
   if(!d.sentences.length){box.innerHTML='<div class="hint">今日还没有句子。点“批量录入”最方便。</div>';return;}
   box.innerHTML=d.sentences.map(function(s,i){
     return '<div class="sentence">'+
-      '<div class="row space"><div style="flex:1"><div class="en">'+esc(s.en)+'</div><div class="zh">'+esc(s.zh||"")+'</div></div><span class="badge">'+(s.best||0)+'%</span></div>'+
+      '<div class="row space"><div style="flex:1"><div class="en">'+esc(s.en)+'</div><div class="zh">'+esc(s.zh||"")+'</div><div class="tiny muted">'+(s.tag?("【"+esc(s.tag)+"】 "+esc(s.pattern||"")):"")+'</div></div><span class="badge">'+(s.best||0)+'%</span></div>'+
       '<div class="row">'+
       '<button class="btn sm js-play" data-i="'+i+'">🔊 标准音</button>'+
       '<button class="btn sm js-record" data-i="'+i+'">● 录音</button>'+
@@ -360,12 +374,12 @@ function renderSentenceList(){
   });});
 }
 
-function makeSentence(en,zh){return {en:en,zh:zh||"",read:false,best:0,wrong:0,stage:0,next:null,lastTest:null};}
+function makeSentence(en,zh,tag,pattern){return {en:en,zh:zh||"",tag:tag||"",pattern:pattern||"",read:false,best:0,wrong:0,stage:0,next:null,lastTest:null};}
 
 function defaultSentencesForDay(n){
   var c=courseItem(n);
   return (c.phrases||[]).slice(0,18).map(function(x){
-    var s=makeSentence(x[0],x[1]);s.preset=true;return s;
+    var s=makeSentence(x[0],x[1],x[2],x[3]);s.preset=true;return s;
   });
 }
 function ensureDayDefaults(n){
@@ -377,6 +391,20 @@ function restoreDayDefaults(){
   var n=activeDay(),d=dayData(n);
   if(d.sentences.length && !confirm("恢复默认18句会替换今天现有的句子。确定继续吗？"))return;
   d.sentences=defaultSentencesForDay(n);d.seeded=true;d.started=false;setDayData(n,d);renderAll();showToast("已恢复今日默认18句。");
+}
+
+function migrateCurriculumV10(){
+  if(state.curriculumVersion===10)return;
+  Object.keys(state.days||{}).forEach(function(k){
+    var n=parseInt(k.slice(1),10);if(!n||n<1||n>180)return;
+    var d=state.days[k]||{sentences:[]};
+    var custom=(d.sentences||[]).filter(function(s){return !s.preset;});
+    d.sentences=defaultSentencesForDay(n).concat(custom).slice(0,20);
+    d.seeded=true;
+    state.days[k]=d;
+  });
+  state.curriculumVersion=10;
+  save();
 }
 
 
@@ -540,7 +568,7 @@ function renderDK(){
   $("dkCount").textContent=arr.length+" 个场景";
   $("dkList").innerHTML=arr.map(function(s,si){
     return '<details class="sentence"><summary style="cursor:pointer;font-weight:800">'+esc(s.topicZh)+' · '+esc(s.topicEn)+(s.officialExample?' <span class="badge">DK公开示例</span>':'')+'</summary>'+
-      '<div style="margin-top:10px">'+s.phrases.map(function(p,pi){return '<div style="padding:8px 0;border-bottom:1px solid #eef0f3"><div class="en">'+esc(p[0])+'</div><div class="zh">'+esc(p[1])+'</div><div class="row"><button class="btn sm js-dk-play" data-s="'+si+'" data-p="'+pi+'">🔊</button><button class="btn sm js-dk-add" data-s="'+si+'" data-p="'+pi+'">+ 加入今天</button></div></div>';}).join("")+'</div></details>';
+      '<div style="margin-top:10px">'+s.phrases.map(function(p,pi){return '<div style="padding:8px 0;border-bottom:1px solid #eef0f3"><div class="en">'+esc(p[0])+'</div><div class="zh">'+esc(p[1])+'</div><div class="tiny muted">'+(p[2]?("【"+esc(p[2])+"】 "+esc(p[3]||"")):"")+'</div><div class="row"><button class="btn sm js-dk-play" data-s="'+si+'" data-p="'+pi+'">🔊</button><button class="btn sm js-dk-add" data-s="'+si+'" data-p="'+pi+'">+ 加入今天</button></div></div>';}).join("")+'</div></details>';
   }).join("");
   qsa(".js-dk-play").forEach(function(b){b.addEventListener("click",function(){var s=arr[+b.dataset.s],p=s.phrases[+b.dataset.p];speak(p[0]);});});
   qsa(".js-dk-add").forEach(function(b){b.addEventListener("click",function(){var s=arr[+b.dataset.s],p=s.phrases[+b.dataset.p];addPhraseToToday(p[0],p[1]);});});
@@ -548,6 +576,44 @@ function renderDK(){
 function initDKFilter(){
   var cats=Array.from(new Set(DK_LIBRARY.map(function(s){return s.category;})));
   $("dkCategory").innerHTML='<option value="">全部分类</option>'+cats.map(function(c){return '<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join("");
+}
+
+function buildPatternMap(){
+  var map={};
+  DAILY180.forEach(function(d){
+    (d.patterns||[]).forEach(function(p){
+      var key=p.formula+"|"+p.meaning;
+      if(!map[key])map[key]={formula:p.formula,meaning:p.meaning,tag:p.tag||"",categories:{},examples:[]};
+      map[key].categories[d.categoryZh]=true;
+      if(map[key].examples.length<4 && !map[key].examples.some(function(x){return x.text===p.example;})){
+        map[key].examples.push({day:d.day,topic:d.topicZh,text:p.example});
+      }
+    });
+  });
+  return Object.values(map).sort(function(a,b){
+    return Object.keys(b.categories).length-Object.keys(a.categories).length || a.formula.localeCompare(b.formula);
+  });
+}
+function initPatternMapFilter(){
+  var el=$("patternMapCategory");if(!el)return;
+  var cats=Array.from(new Set(DAILY180.map(function(d){return d.categoryZh;})));
+  el.innerHTML='<option value="">全部主题类别</option>'+cats.map(function(c){return '<option value="'+esc(c)+'">'+esc(c)+'</option>';}).join("");
+}
+function renderPatternMap(){
+  var list=$("patternMapList");if(!list)return;
+  var q=($("patternMapSearch").value||"").toLowerCase().trim(),cat=$("patternMapCategory").value;
+  var arr=buildPatternMap().filter(function(p){
+    if(cat&&!p.categories[cat])return false;
+    if(!q)return true;
+    return (p.formula+" "+p.meaning+" "+p.tag+" "+p.examples.map(function(x){return x.text+" "+x.topic;}).join(" ")).toLowerCase().indexOf(q)>=0;
+  });
+  $("patternMapCount").textContent=arr.length+" 个结构";
+  list.innerHTML=arr.slice(0,120).map(function(p){
+    return '<details class="sentence"><summary style="cursor:pointer"><b>'+esc(p.formula)+'</b> <span class="badge">'+esc(p.tag||p.meaning)+'</span></summary>'+
+      '<div class="small muted" style="margin:7px 0">'+esc(p.meaning)+' · '+esc(Object.keys(p.categories).join(" / "))+'</div>'+
+      p.examples.map(function(x){return '<div style="padding:6px 0;border-top:1px solid #eef0f3"><span class="tiny muted">Day '+x.day+' · '+esc(x.topic)+'</span><div>'+esc(x.text)+'</div></div>';}).join("")+
+      '</details>';
+  }).join("")||'<div class="hint">没有匹配的句型。</div>';
 }
 
 function renderStats(){
@@ -644,11 +710,12 @@ function bind(){
   $("examSubmitBtn").addEventListener("click",submitExam);$("examNextBtn").addEventListener("click",nextExam);
 
   $("vocabSearch").addEventListener("input",renderVocab);$("vocabSort").addEventListener("change",renderVocab);$("exportVocabBtn").addEventListener("click",exportVocab);
+  $("patternMapSearch").addEventListener("input",renderPatternMap);$("patternMapCategory").addEventListener("change",renderPatternMap);
   $("dkSearch").addEventListener("input",renderDK);$("dkCategory").addEventListener("change",renderDK);
   $("librarySearch").addEventListener("input",renderLibrary);$("libraryFilter").addEventListener("change",renderLibrary);$("exportLibraryBtn").addEventListener("click",exportLibrary);
 
   $("startDateInput").addEventListener("change",function(){state.startDate=this.value||iso();state.selectedDay=null;save();renderAll();});
-  $("dailyTargetInput").addEventListener("change",function(){state.dailyTarget=Math.max(16,Math.min(20,parseInt(this.value,10)||8));save();renderAll();});
+  $("dailyTargetInput").addEventListener("change",function(){state.dailyTarget=Math.max(16,Math.min(20,parseInt(this.value,10)||18));save();renderAll();});
   $("exportBackupBtn").addEventListener("click",function(){download(JSON.stringify(state,null,2),"妈妈英语180天_备份.json","application/json");});
   $("importBackupInput").addEventListener("change",function(){
     var f=this.files&&this.files[0];if(!f)return;var reader=new FileReader();
@@ -664,9 +731,10 @@ function bind(){
   });
   $("audioTestBtn").addEventListener("click",function(){
     resumeAudioContext().then(function(){
-      return speakAsync("Let\'s wake up gently.");
+      var t=(DAILY180[0]&&DAILY180[0].phrases&&DAILY180[0].phrases[0])?DAILY180[0].phrases[0][0]:"Good morning, sleepyhead.";
+      return speakAsync(t);
     }).then(function(){
-      diagnostic("测试播放完成。如果您听到了“Let’s wake up gently”，朗读模块已经正常。");
+      diagnostic("测试播放完成。如果您听到了测试句，朗读模块已经正常。");
     }).catch(function(err){
       diagnostic("测试失败："+(err&&err.message?err.message:"未知错误")+"。请截图这一行给我。");
     });
@@ -686,7 +754,7 @@ function bind(){
 
 document.addEventListener("DOMContentLoaded",function(){
   try{
-    bind();initDKFilter();initAudioDiagnostics();renderAll();switchView("today");
+    bind();initDKFilter();initPatternMapFilter();migrateCurriculumV10();initAudioDiagnostics();renderAll();switchView("today");
     var status=$("installStatus");
     if(status && !window.__englishPwaPrompt && !(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)){
       status.textContent="页面功能已就绪；点“安装到手机桌面”检查安装能力。";

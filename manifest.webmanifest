@@ -1,8 +1,8 @@
 {
   "id": "https://chunxiawang989-beep.github.io/mom-english-180/",
-  "name": "妈妈英语·180天",
+  "name": "妈妈英语·180天 V10",
   "short_name": "妈妈英语",
-  "description": "180天亲子英语口语训练：每天独立主题18句，朗读、默写、考试、DK独立生活场景辅助库。",
+  "description": "180天亲子英语口语训练：每天18句丰富场景表达、句型总结、朗读默写考试，以及DK独立生活技能辅助库。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

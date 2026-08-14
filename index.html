@@ -102,7 +102,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
   <div class="top">
     <div class="brand">
       <h1>妈妈英语·180天</h1>
-      <p>独立APP V9 · 180天扩展 · 每天18句 · DK辅助库</p>
+      <p>独立APP V10 · 丰富句型 · 180天 × 每天18句</p>
       <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
     </div>
     <div class="top-actions">
@@ -117,7 +117,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
       <div class="row space"><div class="row"><span class="pill" id="dayPill">Day 1 / 180</span><span class="badge" id="stageBadge"></span><span class="badge" id="sourceBadge"></span></div><button class="btn sm" id="backTodayBtn">回到今天</button></div>
       <h2 id="topicZh">起床</h2>
       <div class="muted" id="topicEn">Wake up</div>
-      <p class="small muted" id="topicGoal"></p>
+      <p class="small muted" id="topicGoal"></p><div class="tiny muted" id="topicReference" style="margin-top:5px"></div>
       <div class="bar"><i id="dayProgressBar" style="width:0"></i></div>
       <div class="row space tiny muted" style="margin-top:6px"><span id="dayProgressText"></span><span id="dayDate"></span></div>
     </div>
@@ -140,8 +140,19 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
     </div>
 
     <div class="card">
+      <div class="row space">
+        <div>
+          <h3 class="section-title" style="margin-bottom:2px">今日句型总结</h3>
+          <div class="tiny muted">从18句中提炼6个可迁移结构；重点理解结构，不是背语法术语</div>
+        </div>
+        <span class="badge">6个结构</span>
+      </div>
+      <div id="patternSummary"></div>
+    </div>
+
+    <div class="card">
       <h3 class="section-title">朗读训练</h3>
-      <div class="hint"><b>V7华为兼容朗读：</b>默认直接使用APP内置课程音频，不依赖华为系统TTS，也不依赖第三方在线发音。首次打开会加载约4.5MB课程音频；状态显示“课程音频已就绪”后即可播放。</div>
+      <div class="hint"><b>V10分包朗读：</b>默认句配有APP内置课程音频，按当前主题类别加载小音频包；不依赖华为系统TTS。自定义句优先尝试在线语音。</div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
         <label class="small muted">速度
@@ -176,7 +187,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
         <div class="stat"><b id="ttsStatus">检查中</b><span>系统TTS</span></div>
         <div class="stat"><b id="audioContextStatus">检查中</b><span>音频上下文</span></div>
       </div>
-      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试一句：Let’s wake up gently.</button>
+      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试一句：Good morning, sleepyhead.</button>
       <div id="audioDiagnosticText" class="hint" style="margin-top:10px">正在初始化朗读模块……</div>
     </div>
   </section>
@@ -232,6 +243,17 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
   <section id="view-library" class="hidden">
     <div class="card">
+      <div class="row space">
+        <div><h2 style="margin:0">180天句型地图</h2><p class="small muted">把课程里的表达按结构汇总，查看同一结构在不同场景中的用法。</p></div>
+        <span class="pill" id="patternMapCount"></span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <input id="patternMapSearch" type="text" placeholder="搜索句型、功能或例句">
+        <select id="patternMapCategory" style="max-width:180px"><option value="">全部主题类别</option></select>
+      </div>
+      <div id="patternMapList"></div>
+    </div>
+    <div class="card">
       <div class="row space"><div><h2 style="margin:0">句型库</h2><p class="small muted">已掌握 = 熟练朗读 + 默写全对；核心 = 后续复习继续正确。</p></div><button class="btn" id="exportLibraryBtn">导出CSV</button></div>
       <div class="grid" id="libraryStats" style="margin-top:12px"></div>
       <div class="row" style="margin-top:10px"><input type="text" id="librarySearch" placeholder="搜索英文或中文"><select id="libraryFilter" style="max-width:140px"><option value="mastered">已掌握</option><option value="core">核心句型</option><option value="all">全部</option></select></div>
@@ -269,11 +291,11 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
   <section id="view-stats" class="hidden">
     <div class="card"><h2 style="margin-top:0">学习统计</h2><div class="grid" id="allStats"></div></div>
-    <div class="card"><h3 class="section-title">半年目标</h3><p><b>180天 × 每天16–20句</b> = 900–1800句学习输入。</p><div class="bar"><i id="courseProgressBar"></i></div><p class="small muted" id="courseProgressText"></p><div class="hint">APP区分“录入”“熟练朗读”“默写全对”“核心句型”，避免把看过的句子都算成主动口语。</div></div>
+    <div class="card"><h3 class="section-title">半年目标</h3><p><b>180天 × 每天16–20句</b> = 2880–3600句学习输入；默认18句共3240句。</p><div class="bar"><i id="courseProgressBar"></i></div><p class="small muted" id="courseProgressText"></p><div class="hint">APP区分“录入”“熟练朗读”“默写全对”“核心句型”，避免把看过的句子都算成主动口语。</div></div>
   </section>
 
   <section id="view-calendar" class="hidden">
-    <div class="card"><h2 style="margin-top:0">180天主题日历</h2><p class="small muted">60个家庭主题 × 3轮：基础表达 → 扩展表达 → 自由应用。点击任意一天查看。</p><div id="calendarList"></div></div>
+    <div class="card"><h2 style="margin-top:0">180天主题日历</h2><p class="small muted">180个不重复场景主题，按12大类分组。点击任意一天查看。</p><div id="calendarList"></div></div>
   </section>
 
   <section id="view-settings" class="hidden">
@@ -318,9 +340,8 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
 <div class="toast hidden" id="toast"></div>
 
-<script src="./content.js?v=5.0"></script>
-<script src="./daily180.js?v=9.0"></script>
-<script src="./audio-map.js?v=9.0"></script>
-<script src="./app.js?v=9.0"></script>
+<script src="./daily180.js?v=10.0"></script>
+<script src="./audio-map.js?v=10.0"></script>
+<script src="./app.js?v=10.0"></script>
 </body>
 </html>
