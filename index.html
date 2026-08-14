@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f2937">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<title>妈妈英语·180天</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--line:#e4e7ec;--blue:#315efb;--blue2:#eef2ff;--green:#16845b;--red:#b42318;--orange:#b54708;--shadow:0 8px 28px rgba(16,24,40,.07);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Arial,sans-serif}
+*{box-sizing:border-box}html{background:var(--bg)}body{margin:0;background:var(--bg);color:var(--text);-webkit-tap-highlight-color:transparent}
+button,input,textarea,select{font:inherit}button{touch-action:manipulation}.app{max-width:940px;margin:auto;padding:14px 14px 92px}
+.top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:12px}.brand h1{font-size:22px;margin:0}.brand p{font-size:12px;color:var(--muted);margin:4px 0 0}.top-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:var(--shadow);margin-bottom:12px}.hero{background:linear-gradient(135deg,#fff,#f0f4ff)}.hero h2{font-size:24px;margin:6px 0 2px}.muted{color:var(--muted)}.small{font-size:12px}.tiny{font-size:11px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.space{justify-content:space-between}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat{padding:11px;border:1px solid var(--line);border-radius:14px;background:#fff}.stat b{display:block;font-size:20px}.stat span{font-size:11px;color:var(--muted)}
+.btn{border:0;border-radius:11px;padding:9px 12px;background:#edf1f7;color:#263246;font-weight:700;cursor:pointer}.btn:active{transform:translateY(1px)}.btn.primary{background:var(--blue);color:white}.btn.green{background:#e9f8f1;color:var(--green)}.btn.danger{background:#fff0ef;color:var(--red)}.btn.install{background:#111827;color:#fff}.btn.sm{padding:7px 9px;font-size:12px}.btn.block{width:100%}.btn:disabled{opacity:.5;cursor:not-allowed}
+.badge,.pill{font-size:11px;border-radius:99px;padding:5px 8px;background:#f2f4f7;color:#475467}.pill{background:var(--blue2);color:var(--blue);font-weight:800}.bar{height:8px;border-radius:99px;background:#eef0f4;overflow:hidden}.bar i{display:block;height:100%;background:var(--blue);border-radius:99px}
+.hint{background:#f8fafc;border-left:3px solid #98a2b3;padding:10px 11px;border-radius:8px;color:#475467;font-size:12px;line-height:1.6}
+input[type=text],input[type=date],input[type=number],textarea,select{width:100%;border:1px solid #d0d5dd;border-radius:11px;padding:10px;background:white;color:var(--text);outline:none}input:focus,textarea:focus,select:focus{border-color:#8fa6ff;box-shadow:0 0 0 3px #eef2ff}textarea{min-height:118px;resize:vertical}
+.sentence{border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}.sentence .en{font-size:17px;font-weight:750;line-height:1.5}.sentence .zh{font-size:13px;color:var(--muted);margin:4px 0 9px}.check{display:flex;gap:6px;align-items:center;font-size:12px}.check input{width:18px;height:18px}
+.hidden{display:none!important}.section-title{font-size:16px;margin:0 0 10px}
+.bottom{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.97);border-top:1px solid var(--line);backdrop-filter:blur(10px);z-index:50}.bottom-inner{max-width:940px;margin:auto;display:flex;overflow-x:auto;padding:6px 6px max(7px,env(safe-area-inset-bottom));scrollbar-width:none}.bottom-inner::-webkit-scrollbar{display:none}.tab{flex:0 0 68px;border:0;background:transparent;color:#667085;font-size:10px;padding:6px 2px}.tab b{display:block;font-size:16px;margin-bottom:2px}.tab.active{color:var(--blue);font-weight:800}
+.result{padding:10px;border-radius:11px;margin-top:10px;font-size:13px;line-height:1.55}.result.ok{background:#eaf8f2;color:var(--green)}.result.bad{background:#fff1f0;color:var(--red)}
+.dict-card,.exam-card{text-align:center;padding:22px 12px}.prompt{font-size:20px;font-weight:800;margin:14px 0;line-height:1.5}.word-row{display:grid;grid-template-columns:1fr 70px 82px;gap:7px;padding:9px 2px;border-bottom:1px solid var(--line);align-items:center}.word-list{max-height:560px;overflow:auto}.cal-row{display:grid;grid-template-columns:44px 1fr auto;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center;cursor:pointer}.daynum{width:36px;height:36px;border-radius:10px;background:#eef1f5;display:grid;place-items:center;font-weight:800}.cal-row.today{background:#f4f6ff;padding:9px;border-radius:12px}.cal-row.done .daynum{background:#eaf8f2;color:var(--green)}
+.exam-types{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.exam-type{border:1px solid var(--line);border-radius:14px;padding:12px}.exam-type b{display:block}.exam-type p{font-size:12px;color:var(--muted);min-height:38px}.history-row{display:grid;grid-template-columns:72px 1fr 60px;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);align-items:center}.master-row{border:1px solid var(--line);border-radius:13px;padding:11px;margin:8px 0}.master-row.core{border-left:4px solid var(--green)}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:12px}.modal-card{width:min(560px,100%);background:#fff;border-radius:20px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,.2)}.modal-card h3{margin:0 0 8px}.install-status{font-size:11px;color:var(--muted);margin-top:4px}
+.toast{position:fixed;left:50%;bottom:82px;transform:translateX(-50%);background:#101828;color:white;padding:10px 14px;border-radius:12px;z-index:150;font-size:13px;max-width:86%;text-align:center;box-shadow:var(--shadow)}
+@media(max-width:660px){.app{padding:11px 11px 90px}.grid{grid-template-columns:repeat(2,1fr)}.exam-types{grid-template-columns:1fr}.hero h2{font-size:21px}.top{align-items:center}.top-actions .btn:not(.install){padding:7px 8px;font-size:11px}.word-row{grid-template-columns:1fr 55px 68px}}
+</style>
+
+<script>
+/* Installation layer is deliberately independent of the study app. */
+(function(){
+  var deferredPrompt = null;
+  window.__englishPwaPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    deferredPrompt = e;
+    window.__englishPwaPrompt = e;
+    var btn = document.getElementById('installBtn');
+    if(btn){ btn.textContent='安装到手机桌面'; btn.disabled=false; }
+    var s = document.getElementById('installStatus');
+    if(s){ s.textContent='当前浏览器已允许直接安装。'; }
+  });
+
+  window.addEventListener('appinstalled', function(){
+    deferredPrompt = null;
+    window.__englishPwaPrompt = null;
+    var btn = document.getElementById('installBtn');
+    if(btn){ btn.textContent='已安装'; btn.disabled=true; }
+    var s = document.getElementById('installStatus');
+    if(s){ s.textContent='妈妈英语已经安装到手机。'; }
+  });
+
+  function standalone(){
+    return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  }
+
+  window.installEnglishApp = async function(){
+    if(standalone()){
+      if(window.showToast) window.showToast('当前已经是桌面APP模式。');
+      return;
+    }
+    var p = window.__englishPwaPrompt || deferredPrompt;
+    if(p && p.prompt){
+      try{
+        p.prompt();
+        var choice = await p.userChoice;
+        if(choice && choice.outcome === 'accepted'){
+          if(window.showToast) window.showToast('已接受安装，请查看手机桌面。');
+        }
+        window.__englishPwaPrompt = null;
+        deferredPrompt = null;
+        return;
+      }catch(err){}
+    }
+    var modal = document.getElementById('installModal');
+    if(modal) modal.classList.remove('hidden');
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    var btn=document.getElementById('installBtn');
+    if(btn) btn.addEventListener('click', window.installEnglishApp);
+    if(standalone()){
+      if(btn){btn.textContent='已安装';btn.disabled=true;}
+      var s=document.getElementById('installStatus');
+      if(s)s.textContent='已在桌面APP中运行。';
+    }
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('./sw.js').catch(function(){});
+    }
+  });
+})();
+</script>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <h1>妈妈英语·180天</h1>
+      <p>独立APP V9 · 180天扩展 · 每天18句 · DK辅助库</p>
+      <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn install" id="installBtn">安装到手机桌面</button>
+      <button class="btn" id="calendarBtn">日历</button>
+      <button class="btn" id="settingsBtn">设置</button>
+    </div>
+  </div>
+
+  <section id="view-today">
+    <div class="card hero">
+      <div class="row space"><div class="row"><span class="pill" id="dayPill">Day 1 / 180</span><span class="badge" id="stageBadge"></span><span class="badge" id="sourceBadge"></span></div><button class="btn sm" id="backTodayBtn">回到今天</button></div>
+      <h2 id="topicZh">起床</h2>
+      <div class="muted" id="topicEn">Wake up</div>
+      <p class="small muted" id="topicGoal"></p>
+      <div class="bar"><i id="dayProgressBar" style="width:0"></i></div>
+      <div class="row space tiny muted" style="margin-top:6px"><span id="dayProgressText"></span><span id="dayDate"></span></div>
+    </div>
+
+    <div class="grid" id="todayStats"></div>
+
+    <div class="card">
+      <div class="row space">
+        <div><h3 class="section-title" style="margin-bottom:2px">今日默认18句</h3><div class="tiny muted">每天一个独立主题 · 默认18句 · 可编辑、删除或新增到20句</div></div>
+        <div class="row"><button class="btn sm" id="restoreDefaultBtn">恢复默认18句</button><button class="btn sm primary" id="bulkToggleBtn">批量录入</button></div>
+      </div>
+      <div id="bulkPanel" class="hidden">
+        <div class="hint">默认已经有18句；需要替换或补充时，可从教材中再录入。每行格式：<b>English | 中文</b>。不复制整本教材，只记录您自己选择的学习句。</div>
+        <textarea id="bulkInput" placeholder="Let's brush your teeth. | 我们刷牙吧。&#10;Open your mouth. | 张开嘴。"></textarea>
+        <input type="text" id="bookPageInput" placeholder="书名 / 页码（可选）" style="margin:8px 0">
+        <button class="btn primary block" id="saveBulkBtn">保存今日句子</button>
+      </div>
+      <div id="sentenceList"></div>
+      <button class="btn" id="addSentenceBtn">+ 添加一句</button>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">朗读训练</h3>
+      <div class="hint"><b>V7华为兼容朗读：</b>默认直接使用APP内置课程音频，不依赖华为系统TTS，也不依赖第三方在线发音。首次打开会加载约4.5MB课程音频；状态显示“课程音频已就绪”后即可播放。</div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
+        <label class="small muted">速度
+          <select id="speechRate" style="width:auto;padding:7px">
+            <option value="0.8">0.8×</option>
+            <option value="1" selected>1.0×</option>
+            <option value="1.1">1.1×</option>
+          </select>
+        </label>
+        <label class="small muted">朗读
+          <select id="speechEngine" style="width:auto;padding:7px">
+            <option value="course" selected>课程内置音频（推荐）</option>
+            <option value="system">系统语音（备用）</option>
+            <option value="online">在线语音（自定义句备用）</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row space">
+        <div>
+          <h3 class="section-title" style="margin-bottom:2px">朗读自检</h3>
+          <div class="tiny muted">直接显示手机当前是否具备播放条件</div>
+        </div>
+        <button class="btn sm" id="audioRetryBtn">重新加载音频</button>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div class="stat"><b id="audioFileStatus">检查中</b><span>课程音频文件</span></div>
+        <div class="stat"><b id="audioMapStatus">检查中</b><span>音频映射表</span></div>
+        <div class="stat"><b id="webAudioStatus">检查中</b><span>Web Audio</span></div>
+        <div class="stat"><b id="ttsStatus">检查中</b><span>系统TTS</span></div>
+        <div class="stat"><b id="audioContextStatus">检查中</b><span>音频上下文</span></div>
+      </div>
+      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试一句：Let’s wake up gently.</button>
+      <div id="audioDiagnosticText" class="hint" style="margin-top:10px">正在初始化朗读模块……</div>
+    </div>
+  </section>
+
+  <section id="view-dictation" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">今日默写</h2>
+      <p class="small muted">中文提示 → 写出完整英文。忽略大小写和末尾标点，拼写需正确。</p>
+      <div id="dictEmpty" class="hint hidden">今天还没有句子，请先去“今日”录入。</div>
+      <div id="dictPanel" class="dict-card">
+        <span class="pill" id="dictCounter"></span>
+        <div class="prompt" id="dictPrompt"></div>
+        <div class="row" style="justify-content:center"><button class="btn" id="dictListenBtn">🔊 听标准音</button><button class="btn" id="dictRevealBtn">👁 临时看答案</button></div>
+        <input type="text" id="dictInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="默写完整英文句子" style="margin-top:12px">
+        <button class="btn primary block" id="dictCheckBtn" style="margin-top:9px">检查</button>
+        <div id="dictResult"></div>
+        <button class="btn block" id="dictNextBtn" style="margin-top:9px">下一句</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-exam" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">自动考试</h2>
+      <div class="exam-types">
+        <div class="exam-type"><b>每日测</b><p>当天全部句子，先口述再默写。</p><button class="btn primary block" data-exam="daily">开始</button></div>
+        <div class="exam-type"><b>周测</b><p>最近7天随机抽最多10句。</p><button class="btn primary block" data-exam="weekly">开始</button></div>
+        <div class="exam-type"><b>月测</b><p>最近30天随机抽最多20句。</p><button class="btn primary block" data-exam="monthly">开始</button></div>
+      </div>
+    </div>
+    <div class="card hidden" id="examRunPanel">
+      <div class="row space"><span class="pill" id="examModeLabel"></span><span class="small muted" id="examCounter"></span></div>
+      <div class="exam-card">
+        <div class="small muted">先不看英文说出来，再默写。</div>
+        <div class="prompt" id="examPrompt"></div>
+        <label class="check" style="justify-content:center"><input type="checkbox" id="examOralCheck">我已经不看英文完整说出</label>
+        <input type="text" id="examInput" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="默写完整英文" style="margin-top:12px">
+        <button class="btn primary block" id="examSubmitBtn" style="margin-top:9px">提交本题</button>
+        <div id="examFeedback"></div>
+        <button class="btn block hidden" id="examNextBtn" style="margin-top:9px">下一题</button>
+      </div>
+    </div>
+    <div class="card hidden" id="examSummary"></div>
+    <div class="card">
+      <h3 class="section-title">考试记录</h3>
+      <div id="examHistory"></div>
+    </div>
+  </section>
+
+  <section id="view-review" class="hidden">
+    <div class="card"><h2 style="margin-top:0">复习队列</h2><p class="small muted">错句次日复习；正确后逐渐延长到3、7、14天。</p><div id="reviewList"></div></div>
+  </section>
+
+  <section id="view-library" class="hidden">
+    <div class="card">
+      <div class="row space"><div><h2 style="margin:0">句型库</h2><p class="small muted">已掌握 = 熟练朗读 + 默写全对；核心 = 后续复习继续正确。</p></div><button class="btn" id="exportLibraryBtn">导出CSV</button></div>
+      <div class="grid" id="libraryStats" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:10px"><input type="text" id="librarySearch" placeholder="搜索英文或中文"><select id="libraryFilter" style="max-width:140px"><option value="mastered">已掌握</option><option value="core">核心句型</option><option value="all">全部</option></select></div>
+      <div id="libraryList"></div>
+    </div>
+  </section>
+
+  <section id="view-vocab" class="hidden">
+    <div class="card">
+      <div class="row space"><div><h2 style="margin:0">我的单词库</h2><p class="small muted">从所有实际录入句子中自动提取并按词形去重。</p></div><button class="btn" id="exportVocabBtn">导出CSV</button></div>
+      <div class="grid" id="vocabStats" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:10px"><input type="text" id="vocabSearch" placeholder="搜索单词"><select id="vocabSort" style="max-width:140px"><option value="freq">按频次</option><option value="alpha">按字母</option><option value="first">按首次出现</option></select></div>
+      <div class="word-list" id="vocabList"></div>
+    </div>
+  </section>
+
+
+  <section id="view-dk" class="hidden">
+    <div class="card">
+      <div class="row space">
+        <div>
+          <h2 style="margin:0">DK I Can Do That · 场景辅助库</h2>
+          <p class="small muted">按独立生活技能场景整理的原创亲子英语。公开确认场景标记“DK公开示例”；其余为同类独立技能扩展。</p>
+        </div>
+        <span class="pill" id="dkCount"></span>
+      </div>
+      <div class="hint">本模块不是原书全文复制。DK官方公开介绍明确举例包括系鞋带、穿毛衣、如厕、剥水果、数到100、刷牙等。本库用于您辅助口语学习；可以把任意句子加入当天学习，单日总数最多20句。</div>
+      <div class="row" style="margin-top:10px">
+        <input id="dkSearch" type="text" placeholder="搜索场景或句子">
+        <select id="dkCategory" style="max-width:180px"><option value="">全部分类</option></select>
+      </div>
+      <div id="dkList"></div>
+    </div>
+  </section>
+
+  <section id="view-stats" class="hidden">
+    <div class="card"><h2 style="margin-top:0">学习统计</h2><div class="grid" id="allStats"></div></div>
+    <div class="card"><h3 class="section-title">半年目标</h3><p><b>180天 × 每天16–20句</b> = 900–1800句学习输入。</p><div class="bar"><i id="courseProgressBar"></i></div><p class="small muted" id="courseProgressText"></p><div class="hint">APP区分“录入”“熟练朗读”“默写全对”“核心句型”，避免把看过的句子都算成主动口语。</div></div>
+  </section>
+
+  <section id="view-calendar" class="hidden">
+    <div class="card"><h2 style="margin-top:0">180天主题日历</h2><p class="small muted">60个家庭主题 × 3轮：基础表达 → 扩展表达 → 自由应用。点击任意一天查看。</p><div id="calendarList"></div></div>
+  </section>
+
+  <section id="view-settings" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">设置与备份</h2>
+      <label class="small">计划开始日期<input type="date" id="startDateInput"></label>
+      <label class="small" style="display:block;margin-top:10px">每日目标句数<input type="number" min="16" max="20" id="dailyTargetInput"></label>
+      <div class="row" style="margin-top:12px"><button class="btn" id="exportBackupBtn">导出备份</button><label class="btn" for="importBackupInput">导入备份</label><input type="file" id="importBackupInput" accept=".json" class="hidden"><button class="btn danger" id="resetBtn">清空数据</button></div>
+      <div class="hint" style="margin-top:12px">数据存储在当前手机浏览器/PWA本地。建议每周导出一次JSON备份。</div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">安装状态</h3>
+      <button class="btn install block" id="installBtn2">安装到手机桌面</button>
+      <p class="small muted">若浏览器支持PWA安装，会直接弹出系统安装窗口；若浏览器没有开放该能力，APP会给出替代入口。</p>
+    </div>
+  </section>
+</div>
+
+<nav class="bottom"><div class="bottom-inner">
+<button class="tab active" data-view="today"><b>●</b>今日</button>
+<button class="tab" data-view="dictation"><b>✎</b>默写</button>
+<button class="tab" data-view="exam"><b>✓</b>考试</button>
+<button class="tab" data-view="review"><b>↻</b>复习</button>
+<button class="tab" data-view="library"><b>★</b>句型</button>
+<button class="tab" data-view="vocab"><b>Aa</b>单词</button>
+<button class="tab" data-view="dk"><b>DK</b>场景</button>
+<button class="tab" data-view="stats"><b>▥</b>统计</button>
+</div></nav>
+
+<div class="modal hidden" id="installModal">
+  <div class="modal-card">
+    <h3>安装到手机桌面</h3>
+    <p class="small muted">当前浏览器暂时没有向网页开放“直接安装”系统弹窗。网页不能绕过浏览器安全机制强制创建桌面图标。</p>
+    <div class="hint">建议先点下面的“用 Chrome 打开”。在支持安装的浏览器中重新打开后，再点页面顶部“安装到手机桌面”，会直接弹出系统安装窗口。</div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn primary" id="openChromeBtn">用 Chrome 打开</button>
+      <button class="btn" id="copyUrlBtn">复制网址</button>
+      <button class="btn" id="closeInstallModalBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="./content.js?v=5.0"></script>
+<script src="./daily180.js?v=9.0"></script>
+<script src="./audio-map.js?v=9.0"></script>
+<script src="./app.js?v=9.0"></script>
+</body>
+</html>
