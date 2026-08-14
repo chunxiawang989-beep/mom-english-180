@@ -102,7 +102,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
   <div class="top">
     <div class="brand">
       <h1>妈妈英语·180天</h1>
-      <p>独立APP V6 · 增强朗读 · 每天自动8句 · 可编辑/新增</p>
+      <p>独立APP V7 · 华为兼容朗读 · 每天自动8句 · 可编辑/新增</p>
       <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
     </div>
     <div class="top-actions">
@@ -141,7 +141,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
     <div class="card">
       <h3 class="section-title">朗读训练</h3>
-      <div class="hint"><b>V6增强朗读：</b>默认优先在线美音；网络不可用时，180天默认句自动切换到内置离线美音。无需依赖手机系统朗读。顺序：听 → 跟读 → 遮住文字自己说 → 录音回听。</div>
+      <div class="hint"><b>V7华为兼容朗读：</b>默认直接使用APP内置课程音频，不依赖华为系统TTS，也不依赖第三方在线发音。首次打开会加载约4.5MB课程音频；状态显示“课程音频已就绪”后即可播放。</div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
         <label class="small muted">速度
@@ -153,13 +153,30 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
         </label>
         <label class="small muted">朗读
           <select id="speechEngine" style="width:auto;padding:7px">
-            <option value="auto" selected>自动（推荐）</option>
-            <option value="online">在线美音</option>
-            <option value="offline">内置离线</option>
-            <option value="system">系统语音</option>
+            <option value="course" selected>课程内置音频（推荐）</option>
+            <option value="system">系统语音（备用）</option>
+            <option value="online">在线语音（自定义句备用）</option>
           </select>
         </label>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="row space">
+        <div>
+          <h3 class="section-title" style="margin-bottom:2px">朗读自检</h3>
+          <div class="tiny muted">直接显示手机当前是否具备播放条件</div>
+        </div>
+        <button class="btn sm" id="audioRetryBtn">重新加载音频</button>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <div class="stat"><b id="audioFileStatus">检查中</b><span>课程音频文件</span></div>
+        <div class="stat"><b id="webAudioStatus">检查中</b><span>Web Audio</span></div>
+        <div class="stat"><b id="ttsStatus">检查中</b><span>系统TTS</span></div>
+        <div class="stat"><b id="audioContextStatus">检查中</b><span>音频上下文</span></div>
+      </div>
+      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试一句：Open your eyes.</button>
+      <div id="audioDiagnosticText" class="hint" style="margin-top:10px">正在初始化朗读模块……</div>
     </div>
   </section>
 
@@ -285,7 +302,7 @@ window.APP_COURSE=[{"day":1,"en":"Wake up","zh":"起床","source":"DK","stage":"
 window.APP_SAMPLES={"Wake up":[["Good morning. It is time to wake up.","早上好，该起床了。"],["Did you sleep well?","你睡得好吗？"],["Open your eyes.","睁开眼睛。"],["Stretch your arms.","伸伸胳膊。"],["Let us sit up first.","我们先坐起来。"],["Put your feet on the floor.","把脚放到地上。"],["Take your time.","慢慢来。"],["You are ready for a new day.","新的一天准备开始了。"]],"Brush teeth":[["Let us brush your teeth.","我们刷牙吧。"],["Put a little toothpaste on the brush.","挤一点牙膏。"],["Open your mouth.","张开嘴。"],["Brush the front teeth first.","先刷前面的牙。"],["Now brush the back teeth.","现在刷后面的牙。"],["Brush gently in small circles.","轻轻画小圈刷。"],["Rinse your mouth.","漱漱口。"],["Spit it out.","吐出来。"]],"Wash hands":[["Let us wash your hands.","我们洗手吧。"],["Turn on the water.","打开水。"],["Use some soap.","用一点肥皂。"],["Rub your hands together.","搓搓手。"],["Wash between your fingers.","洗洗手指缝。"],["Rinse the soap off.","把肥皂冲掉。"],["Turn off the tap.","关掉水龙头。"],["Dry your hands well.","把手擦干。"]],"Put on shoes":[["It is time to put on your shoes.","该穿鞋了。"],["Which shoe goes on this foot?","哪只鞋穿这只脚？"],["Slide your foot in.","把脚伸进去。"],["Push your heel down.","把脚后跟踩进去。"],["Pull the strap across.","把粘带拉过来。"],["Make sure it feels comfortable.","确认穿着舒服。"],["Stand up and take a few steps.","站起来走几步。"],["Now you are ready to go.","现在可以出发了。"]],"Read together":[["Choose a book.","选一本书。"],["Let us read together.","我们一起读。"],["Look at the picture.","看看图片。"],["What can you see?","你看到了什么？"],["Turn the page.","翻页。"],["What happened?","发生了什么？"],["What happens next?","接下来会发生什么？"],["Let us read it again.","我们再读一遍。"]]};
 </script>
 <script src="./content.js?v=5.0"></script>
-<script src="./audio-map.js?v=6.0"></script>
-<script src="./app.js?v=6.0"></script>
+<script src="./audio-map.js?v=7.0"></script>
+<script src="./app.js?v=7.0"></script>
 </body>
 </html>

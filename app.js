@@ -112,7 +112,13 @@ function switchView(name){
   window.scrollTo(0,0);
 }
 
+
 function audioKey(text){ return normalize(text); }
+
+var webAudioCtx=null;
+var courseAudioBuffer=null;
+var courseAudioPromise=null;
+var onlineAudio=null;
 
 function getRate(){
   var el=$("speechRate");
@@ -120,107 +126,174 @@ function getRate(){
 }
 function getEngine(){
   var el=$("speechEngine");
-  return el ? el.value : "auto";
+  return el ? el.value : "course";
 }
-function stopAllSpeech(){
-  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
-  try{ if(spriteAudio){spriteAudio.pause();spriteAudio.ontimeupdate=null;} }catch(e){}
-  try{ if(activeOnlineAudio){activeOnlineAudio.pause();activeOnlineAudio=null;} }catch(e){}
+function setStatus(id,text,good){
+  var el=$(id); if(!el)return;
+  el.textContent=text;
+  el.style.color=good===true?"#16845b":good===false?"#b42318":"#667085";
+}
+function diagnostic(msg){var el=$("audioDiagnosticText");if(el)el.textContent=msg;}
+
+function getAudioContext(){
+  if(webAudioCtx)return webAudioCtx;
+  var AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC){setStatus("webAudioStatus","不支持",false);return null;}
+  try{
+    webAudioCtx=new AC();
+    setStatus("webAudioStatus","可用",true);
+    setStatus("audioContextStatus",webAudioCtx.state||"已创建",true);
+    webAudioCtx.onstatechange=function(){
+      setStatus("audioContextStatus",webAudioCtx.state||"未知",webAudioCtx.state==="running");
+    };
+    return webAudioCtx;
+  }catch(e){
+    setStatus("webAudioStatus","创建失败",false);
+    return null;
+  }
 }
 
-function playOffline(text){
-  return new Promise(function(resolve,reject){
-    var seg=AUDIO_MAP[audioKey(text)];
-    if(!seg){ reject(new Error("no-offline-audio")); return; }
-    if(!spriteAudio){
-      spriteAudio=new Audio("./speech_us.mp3?v=6.0");
-      spriteAudio.preload="auto";
-    }
-    var start=seg[0], end=seg[1];
-    function begin(){
-      try{
-        spriteAudio.pause();
-        spriteAudio.playbackRate=getRate();
-        spriteAudio.currentTime=Math.max(0,start);
-        var done=false;
-        function finish(){
-          if(done)return;done=true;
-          spriteAudio.pause();spriteAudio.ontimeupdate=null;
-          resolve();
-        }
-        spriteAudio.ontimeupdate=function(){
-          if(spriteAudio.currentTime>=end-0.02) finish();
-        };
-        var p=spriteAudio.play();
-        if(p&&p.catch)p.catch(function(err){spriteAudio.ontimeupdate=null;reject(err);});
-        setTimeout(finish,Math.max(800,((end-start)/getRate()+0.6)*1000));
-      }catch(err){reject(err);}
-    }
-    if(spriteAudio.readyState>=1) begin();
-    else{
-      spriteAudio.addEventListener("loadedmetadata",begin,{once:true});
-      spriteAudio.addEventListener("error",function(){reject(new Error("sprite-load-failed"));},{once:true});
-      spriteAudio.load();
-    }
+function resumeAudioContext(){
+  var ctx=getAudioContext();
+  if(!ctx)return Promise.reject(new Error("webaudio-unsupported"));
+  if(ctx.state==="running")return Promise.resolve(ctx);
+  return ctx.resume().then(function(){
+    setStatus("audioContextStatus",ctx.state,true);
+    return ctx;
   });
 }
 
-function playOnline(text){
-  return new Promise(function(resolve,reject){
-    try{
-      if(activeOnlineAudio)activeOnlineAudio.pause();
-      var url="https://dict.youdao.com/dictvoice?type=0&audio="+encodeURIComponent(text);
-      var a=new Audio(url);
-      activeOnlineAudio=a;
-      a.playbackRate=getRate();
-      var timer=setTimeout(function(){try{a.pause();}catch(e){}reject(new Error("online-timeout"));},6500);
-      a.onended=function(){clearTimeout(timer);activeOnlineAudio=null;resolve();};
-      a.onerror=function(){clearTimeout(timer);activeOnlineAudio=null;reject(new Error("online-failed"));};
-      var p=a.play();
-      if(p&&p.catch)p.catch(function(err){clearTimeout(timer);activeOnlineAudio=null;reject(err);});
-    }catch(err){reject(err);}
+function loadCourseAudio(force){
+  if(courseAudioBuffer && !force)return Promise.resolve(courseAudioBuffer);
+  if(courseAudioPromise && !force)return courseAudioPromise;
+  if(force){courseAudioBuffer=null;courseAudioPromise=null;}
+  setStatus("audioFileStatus","加载中",null);
+  diagnostic("正在加载课程内置音频（约4.5MB），首次可能需要几秒。");
+  var ctx=getAudioContext();
+  if(!ctx){
+    courseAudioPromise=Promise.reject(new Error("no-audio-context"));
+    return courseAudioPromise;
+  }
+  courseAudioPromise=fetch("./speech_us.mp3?v=7.0",{cache:"no-store"})
+    .then(function(resp){
+      if(!resp.ok)throw new Error("audio-http-"+resp.status);
+      setStatus("audioFileStatus","已下载",true);
+      return resp.arrayBuffer();
+    })
+    .then(function(ab){
+      return ctx.decodeAudioData(ab.slice(0));
+    })
+    .then(function(buf){
+      courseAudioBuffer=buf;
+      setStatus("audioFileStatus","已就绪",true);
+      diagnostic("课程音频已就绪。现在点任意“标准音”即可播放。");
+      return buf;
+    })
+    .catch(function(err){
+      courseAudioPromise=null;
+      setStatus("audioFileStatus","失败",false);
+      diagnostic("课程音频加载失败："+err.message+"。请点“重新加载音频”；若仍失败，请截图这一行给我。");
+      throw err;
+    });
+  return courseAudioPromise;
+}
+
+function playCourseAudio(text){
+  var seg=AUDIO_MAP[audioKey(text)];
+  if(!seg)return Promise.reject(new Error("no-course-clip"));
+  var ctx=getAudioContext();
+  if(!ctx)return Promise.reject(new Error("webaudio-unsupported"));
+  return resumeAudioContext().then(function(){
+    return loadCourseAudio(false);
+  }).then(function(buf){
+    var source=ctx.createBufferSource();
+    source.buffer=buf;
+    source.playbackRate.value=getRate();
+    source.connect(ctx.destination);
+    var start=seg[0], duration=Math.max(0.15,seg[1]-seg[0]);
+    return new Promise(function(resolve,reject){
+      source.onended=function(){resolve();};
+      try{
+        source.start(0,start,duration);
+      }catch(e){reject(e);}
+    });
   });
 }
 
 function playSystem(text){
   return new Promise(function(resolve,reject){
     try{
-      if(!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance){reject(new Error("system-unsupported"));return;}
+      if(!("speechSynthesis" in window)||!window.SpeechSynthesisUtterance){
+        reject(new Error("system-unsupported"));return;
+      }
       window.speechSynthesis.cancel();
       var u=new SpeechSynthesisUtterance(text);
       u.lang="en-US";u.rate=getRate();
-      var voices=window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
-      var v=voices.find(function(x){return x.lang==="en-US";}) || voices.find(function(x){return String(x.lang||"").indexOf("en")===0;});
-      if(v)u.voice=v;
-      u.onend=function(){resolve();};u.onerror=function(){reject(new Error("system-failed"));};
+      u.onend=function(){resolve();};
+      u.onerror=function(){reject(new Error("system-failed"));};
       window.speechSynthesis.speak(u);
-    }catch(err){reject(err);}
+    }catch(e){reject(e);}
+  });
+}
+
+function playOnline(text){
+  return new Promise(function(resolve,reject){
+    try{
+      if(onlineAudio){onlineAudio.pause();onlineAudio=null;}
+      var a=new Audio("https://dict.youdao.com/dictvoice?type=0&audio="+encodeURIComponent(text));
+      onlineAudio=a;a.playbackRate=getRate();
+      var timer=setTimeout(function(){try{a.pause();}catch(e){}reject(new Error("online-timeout"));},7000);
+      a.onended=function(){clearTimeout(timer);onlineAudio=null;resolve();};
+      a.onerror=function(){clearTimeout(timer);onlineAudio=null;reject(new Error("online-failed"));};
+      var p=a.play();
+      if(p&&p.catch)p.catch(function(e){clearTimeout(timer);reject(e);});
+    }catch(e){reject(e);}
   });
 }
 
 function speakAsync(text){
-  stopAllSpeech();
   var mode=getEngine();
-  if(mode==="offline"){
-    return playOffline(text).catch(function(){showToast("这句是自定义句，暂无内置离线音频。");});
-  }
   if(mode==="system"){
-    return playSystem(text).catch(function(){showToast("当前浏览器不支持系统语音，请切换“自动”或“内置离线”。");});
+    return playSystem(text).catch(function(){
+      showToast("系统TTS不可用，已尝试课程内置音频。");
+      return playCourseAudio(text);
+    });
   }
   if(mode==="online"){
     return playOnline(text).catch(function(){
-      return playOffline(text).catch(function(){showToast("在线朗读失败，这句也没有离线音频。");});
+      return playCourseAudio(text).catch(function(){
+        showToast("这句是自定义句，在线语音失败，且不在课程内置音频中。");
+      });
     });
   }
-  // auto: natural online voice first, then bundled offline audio, then system.
-  return playOnline(text)
-    .catch(function(){return playOffline(text);})
-    .catch(function(){return playSystem(text);})
-    .catch(function(){showToast("这句暂时无法朗读。默认句可切换“内置离线”重试。");});
+  // Default: course audio only; no external dependency for standard phrases.
+  return playCourseAudio(text).catch(function(err){
+    if(err && err.message==="no-course-clip"){
+      return playOnline(text).catch(function(){return playSystem(text);});
+    }
+    showToast("课程音频尚未就绪，请看下方“朗读自检”。");
+    throw err;
+  });
 }
 
-function speak(text){ speakAsync(text); }
+function speak(text){ return speakAsync(text); }
 window.speakPhrase=speak;
+
+function initAudioDiagnostics(){
+  var supportsTTS=("speechSynthesis" in window)&&!!window.SpeechSynthesisUtterance;
+  setStatus("ttsStatus",supportsTTS?"可用":"不支持",supportsTTS);
+  var ctx=getAudioContext();
+  if(ctx){
+    setStatus("webAudioStatus","可用",true);
+    setStatus("audioContextStatus",ctx.state||"已创建",ctx.state==="running");
+    loadCourseAudio(false).catch(function(){});
+  }else{
+    setStatus("webAudioStatus","不支持",false);
+    setStatus("audioContextStatus","不可用",false);
+    diagnostic("当前浏览器连 Web Audio API 都不支持。请把这个页面截图给我。");
+  }
+}
+
 
 var recorder=null, chunks=[];
 function recordSentence(index,button){
@@ -561,6 +634,20 @@ function bind(){
   });
   $("resetBtn").addEventListener("click",function(){if(confirm("确定清空全部英语学习记录？")){localStorage.removeItem(KEY);state=defaultState();save();renderAll();}});
 
+  $("audioRetryBtn").addEventListener("click",function(){
+    resumeAudioContext().then(function(){return loadCourseAudio(true);}).then(function(){
+      showToast("课程音频重新加载成功。");
+    }).catch(function(){});
+  });
+  $("audioTestBtn").addEventListener("click",function(){
+    resumeAudioContext().then(function(){
+      return speakAsync("Open your eyes.");
+    }).then(function(){
+      diagnostic("测试播放完成。如果您听到了“Open your eyes”，朗读模块已经正常。");
+    }).catch(function(err){
+      diagnostic("测试失败："+(err&&err.message?err.message:"未知错误")+"。请截图这一行给我。");
+    });
+  });
   $("installBtn2").addEventListener("click",function(){window.installEnglishApp();});
   $("closeInstallModalBtn").addEventListener("click",function(){$("installModal").classList.add("hidden");});
   $("copyUrlBtn").addEventListener("click",function(){
@@ -576,7 +663,7 @@ function bind(){
 
 document.addEventListener("DOMContentLoaded",function(){
   try{
-    bind();renderAll();switchView("today");
+    bind();initAudioDiagnostics();renderAll();switchView("today");
     var status=$("installStatus");
     if(status && !window.__englishPwaPrompt && !(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)){
       status.textContent="页面功能已就绪；点“安装到手机桌面”检查安装能力。";
