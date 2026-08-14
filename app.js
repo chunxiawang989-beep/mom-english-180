@@ -4,6 +4,8 @@
 var COURSE = window.APP_COURSE || [];
 var SAMPLES = window.APP_SAMPLES || {};
 var KEY = "momEnglish180_standalone_v4";
+var BASE = window.APP_BASE_PHRASES || {};
+var GENERIC = window.APP_GENERIC_PHRASES || {};
 var OLD_KEYS = ["momEnglish180_standalone_v3","momEnglish180_v1"];
 
 function $(id){ return document.getElementById(id); }
@@ -110,16 +112,114 @@ function switchView(name){
   window.scrollTo(0,0);
 }
 
-function speak(text){
-  if(!("speechSynthesis" in window)){showToast("当前浏览器不支持系统朗读。");return;}
-  window.speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(text);
-  u.lang="en-US"; u.rate=parseFloat($("speechRate").value||"1");
-  var voices=window.speechSynthesis.getVoices();
-  var v=voices.find(function(x){return x.lang==="en-US";}) || voices.find(function(x){return String(x.lang||"").indexOf("en")===0;});
-  if(v)u.voice=v;
-  window.speechSynthesis.speak(u);
+function audioKey(text){ return normalize(text); }
+
+function getRate(){
+  var el=$("speechRate");
+  return el ? parseFloat(el.value||"1") : 1;
 }
+function getEngine(){
+  var el=$("speechEngine");
+  return el ? el.value : "auto";
+}
+function stopAllSpeech(){
+  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  try{ if(spriteAudio){spriteAudio.pause();spriteAudio.ontimeupdate=null;} }catch(e){}
+  try{ if(activeOnlineAudio){activeOnlineAudio.pause();activeOnlineAudio=null;} }catch(e){}
+}
+
+function playOffline(text){
+  return new Promise(function(resolve,reject){
+    var seg=AUDIO_MAP[audioKey(text)];
+    if(!seg){ reject(new Error("no-offline-audio")); return; }
+    if(!spriteAudio){
+      spriteAudio=new Audio("./speech_us.mp3?v=6.0");
+      spriteAudio.preload="auto";
+    }
+    var start=seg[0], end=seg[1];
+    function begin(){
+      try{
+        spriteAudio.pause();
+        spriteAudio.playbackRate=getRate();
+        spriteAudio.currentTime=Math.max(0,start);
+        var done=false;
+        function finish(){
+          if(done)return;done=true;
+          spriteAudio.pause();spriteAudio.ontimeupdate=null;
+          resolve();
+        }
+        spriteAudio.ontimeupdate=function(){
+          if(spriteAudio.currentTime>=end-0.02) finish();
+        };
+        var p=spriteAudio.play();
+        if(p&&p.catch)p.catch(function(err){spriteAudio.ontimeupdate=null;reject(err);});
+        setTimeout(finish,Math.max(800,((end-start)/getRate()+0.6)*1000));
+      }catch(err){reject(err);}
+    }
+    if(spriteAudio.readyState>=1) begin();
+    else{
+      spriteAudio.addEventListener("loadedmetadata",begin,{once:true});
+      spriteAudio.addEventListener("error",function(){reject(new Error("sprite-load-failed"));},{once:true});
+      spriteAudio.load();
+    }
+  });
+}
+
+function playOnline(text){
+  return new Promise(function(resolve,reject){
+    try{
+      if(activeOnlineAudio)activeOnlineAudio.pause();
+      var url="https://dict.youdao.com/dictvoice?type=0&audio="+encodeURIComponent(text);
+      var a=new Audio(url);
+      activeOnlineAudio=a;
+      a.playbackRate=getRate();
+      var timer=setTimeout(function(){try{a.pause();}catch(e){}reject(new Error("online-timeout"));},6500);
+      a.onended=function(){clearTimeout(timer);activeOnlineAudio=null;resolve();};
+      a.onerror=function(){clearTimeout(timer);activeOnlineAudio=null;reject(new Error("online-failed"));};
+      var p=a.play();
+      if(p&&p.catch)p.catch(function(err){clearTimeout(timer);activeOnlineAudio=null;reject(err);});
+    }catch(err){reject(err);}
+  });
+}
+
+function playSystem(text){
+  return new Promise(function(resolve,reject){
+    try{
+      if(!("speechSynthesis" in window) || !window.SpeechSynthesisUtterance){reject(new Error("system-unsupported"));return;}
+      window.speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang="en-US";u.rate=getRate();
+      var voices=window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      var v=voices.find(function(x){return x.lang==="en-US";}) || voices.find(function(x){return String(x.lang||"").indexOf("en")===0;});
+      if(v)u.voice=v;
+      u.onend=function(){resolve();};u.onerror=function(){reject(new Error("system-failed"));};
+      window.speechSynthesis.speak(u);
+    }catch(err){reject(err);}
+  });
+}
+
+function speakAsync(text){
+  stopAllSpeech();
+  var mode=getEngine();
+  if(mode==="offline"){
+    return playOffline(text).catch(function(){showToast("这句是自定义句，暂无内置离线音频。");});
+  }
+  if(mode==="system"){
+    return playSystem(text).catch(function(){showToast("当前浏览器不支持系统语音，请切换“自动”或“内置离线”。");});
+  }
+  if(mode==="online"){
+    return playOnline(text).catch(function(){
+      return playOffline(text).catch(function(){showToast("在线朗读失败，这句也没有离线音频。");});
+    });
+  }
+  // auto: natural online voice first, then bundled offline audio, then system.
+  return playOnline(text)
+    .catch(function(){return playOffline(text);})
+    .catch(function(){return playSystem(text);})
+    .catch(function(){showToast("这句暂时无法朗读。默认句可切换“内置离线”重试。");});
+}
+
+function speak(text){ speakAsync(text); }
 window.speakPhrase=speak;
 
 var recorder=null, chunks=[];
@@ -146,7 +246,7 @@ function recordSentence(index,button){
 }
 
 function renderToday(){
-  var n=activeDay(), c=courseItem(n), d=dayData(n), target=state.dailyTarget||8;
+  var n=activeDay(), c=courseItem(n), d=ensureDayDefaults(n), target=state.dailyTarget||8;
   var mastered=d.sentences.filter(function(s){return !!s.read;}).length;
   $("dayPill").textContent="Day "+n+" / 180";
   $("stageBadge").textContent=c.stage;
@@ -164,7 +264,6 @@ function renderToday(){
     statBox(mastered,"熟练朗读")+
     statBox(uniqueToday.size,"今日去重词")+
     statBox(d.sentences.filter(function(s){return (s.best||0)>=100;}).length,"默写全对");
-  $("loadSampleBtn").classList.toggle("hidden",!SAMPLES[c.en]);
   renderSentenceList();
   renderDictation();
 }
@@ -178,12 +277,19 @@ function renderSentenceList(){
       '<div class="row">'+
       '<button class="btn sm js-play" data-i="'+i+'">🔊 标准音</button>'+
       '<button class="btn sm js-record" data-i="'+i+'">● 录音</button>'+
+      '<button class="btn sm js-edit" data-i="'+i+'">编辑</button>'+
       '<label class="check"><input type="checkbox" class="js-master" data-i="'+i+'" '+(s.read?"checked":"")+'>不看文字能熟练说</label>'+
       '<button class="btn sm danger js-delete" data-i="'+i+'">删除</button>'+
       '</div></div>';
   }).join("");
   qsa(".js-play").forEach(function(b){b.addEventListener("click",function(){var s=dayData().sentences[+b.dataset.i];if(s)speak(s.en);});});
   qsa(".js-record").forEach(function(b){b.addEventListener("click",function(){recordSentence(+b.dataset.i,b);});});
+  qsa(".js-edit").forEach(function(b){b.addEventListener("click",function(){
+    var n=activeDay(),d=dayData(n),i=+b.dataset.i,s=d.sentences[i];if(!s)return;
+    var en=prompt("修改英文句子：",s.en);if(en===null)return;en=en.trim();if(!en){showToast("英文句子不能为空。");return;}
+    var zh=prompt("修改中文提示：",s.zh||"");if(zh===null)zh=s.zh||"";
+    s.en=en;s.zh=zh.trim();s.preset=false;s.read=false;s.best=0;s.stage=0;s.next=null;d.started=true;setDayData(n,d);renderAll();showToast("句子已修改。");
+  });});
   qsa(".js-master").forEach(function(ch){ch.addEventListener("change",function(){
     var n=activeDay(),d=dayData(n),i=+ch.dataset.i;if(d.sentences[i])d.sentences[i].read=ch.checked;d.started=true;setDayData(n,d);renderAll();
   });});
@@ -195,8 +301,25 @@ function renderSentenceList(){
 
 function makeSentence(en,zh){return {en:en,zh:zh||"",read:false,best:0,wrong:0,stage:0,next:null,lastTest:null};}
 
+function defaultSentencesForDay(n){
+  var c=courseItem(n), a=(BASE[c.en]||[]).slice(0,4), g=(((GENERIC[c.source]||{})[c.stage])||[]).slice(0,4);
+  return a.concat(g).slice(0,8).map(function(x){var s=makeSentence(x[0],x[1]);s.preset=true;return s;});
+}
+function ensureDayDefaults(n){
+  var d=dayData(n);
+  if(!d.seeded && d.sentences.length===0){d.sentences=defaultSentencesForDay(n);d.seeded=true;d.started=false;state.days[dayKey(n)]=d;save();}
+  return d;
+}
+function restoreDayDefaults(){
+  var n=activeDay(),d=dayData(n);
+  if(d.sentences.length && !confirm("恢复默认8句会替换今天现有的句子。确定继续吗？"))return;
+  d.sentences=defaultSentencesForDay(n);d.seeded=true;d.started=false;setDayData(n,d);renderAll();showToast("已恢复今日默认8句。");
+}
+
+
 var dictPos=0,dictOrder=[];
 function renderDictation(){
+  ensureDayDefaults(activeDay());
   var ss=dayData().sentences, empty=!ss.length;
   $("dictEmpty").classList.toggle("hidden",!empty);
   $("dictPanel").classList.toggle("hidden",empty);
@@ -388,6 +511,7 @@ function bind(){
   $("settingsBtn").addEventListener("click",function(){switchView("settings");});
   $("backTodayBtn").addEventListener("click",function(){state.selectedDay=null;save();switchView("today");renderAll();});
 
+  $("restoreDefaultBtn").addEventListener("click",restoreDayDefaults);
   $("bulkToggleBtn").addEventListener("click",function(){$("bulkPanel").classList.toggle("hidden");});
   $("saveBulkBtn").addEventListener("click",function(){
     var lines=$("bulkInput").value.split(/\n+/).map(function(x){return x.trim();}).filter(Boolean);
@@ -395,27 +519,23 @@ function bind(){
     var n=activeDay(),d=dayData(n),items=lines.slice(0,10).map(function(line){
       var p=line.split(/\s*[|｜]\s*/);return makeSentence((p[0]||"").trim(),p.slice(1).join(" | ").trim());
     }).filter(function(s){return s.en;});
-    d.sentences=(d.sentences||[]).concat(items).slice(0,10);d.bookPage=$("bookPageInput").value.trim();d.started=true;setDayData(n,d);
+    d.sentences=(d.sentences||[]).concat(items).slice(0,10);d.seeded=true;d.bookPage=$("bookPageInput").value.trim();d.started=true;setDayData(n,d);
     $("bulkInput").value="";$("bulkPanel").classList.add("hidden");renderAll();showToast("今日句子已保存。");
   });
   $("addSentenceBtn").addEventListener("click",function(){
     var en=prompt("请输入英文句子");if(!en)return;var zh=prompt("中文提示（可留空）")||"";
     var n=activeDay(),d=dayData(n);if(d.sentences.length>=10){showToast("每天最多10句。");return;}
-    d.sentences.push(makeSentence(en.trim(),zh.trim()));d.started=true;setDayData(n,d);renderAll();
-  });
-  $("loadSampleBtn").addEventListener("click",function(){
-    var arr=SAMPLES[courseItem(activeDay()).en];if(!arr){showToast("这个主题暂无内置示例，请从教材录入。");return;}
-    var n=activeDay(),d=dayData(n);d.sentences=(d.sentences||[]).concat(arr.map(function(x){return makeSentence(x[0],x[1]);})).slice(0,10);d.started=true;setDayData(n,d);renderAll();
+    d.sentences.push(makeSentence(en.trim(),zh.trim()));d.seeded=true;d.started=true;setDayData(n,d);renderAll();
   });
   $("playAllBtn").addEventListener("click",function(){
-    var ss=dayData().sentences;if(!ss.length){showToast("请先录入今日句子。");return;}
+    var ss=dayData().sentences;
+    if(!ss.length){showToast("请先录入今日句子。");return;}
     var i=0;
     function next(){
       if(i>=ss.length)return;
-      if(!("speechSynthesis" in window)){showToast("当前浏览器不支持系统朗读。");return;}
-      var u=new SpeechSynthesisUtterance(ss[i++].en);u.lang="en-US";u.rate=parseFloat($("speechRate").value||"1");u.onend=function(){setTimeout(next,260);};u.onerror=next;window.speechSynthesis.speak(u);
+      speakAsync(ss[i++].en).then(function(){setTimeout(next,260);});
     }
-    window.speechSynthesis.cancel();next();
+    next();
   });
 
   $("dictListenBtn").addEventListener("click",function(){var ss=dayData().sentences,idx=dictOrder[dictPos]===undefined?dictPos:dictOrder[dictPos];if(ss[idx])speak(ss[idx].en);});
