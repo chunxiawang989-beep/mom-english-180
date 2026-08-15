@@ -96,14 +96,13 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
   });
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/microsoft-cognitiveservices-speech-sdk@latest/distrib/browser/microsoft.cognitiveservices.speech.sdk.bundle-min.js"></script>
 </head>
 <body>
 <div class="app">
   <div class="top">
     <div class="brand">
       <h1>妈妈英语·180天</h1>
-      <p>独立APP V13 · 神经美音MP3 · 180天 × 每天18句</p>
+      <p>独立APP V14 · 静态高品质MP3 · 180天 × 每天18句</p>
       <div class="install-status" id="installStatus">正在检查是否可直接安装…</div>
     </div>
     <div class="top-actions">
@@ -153,7 +152,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 
     <div class="card">
       <h3 class="section-title">朗读训练</h3>
-      <div class="hint"><b>V13神经美音：</b>默认使用 Microsoft Azure Speech 的 en-US-JennyNeural，生成 48 kHz / 192 kbps MP3。首次播放时在线生成并缓存到手机，之后直接播放缓存，不再使用机械 eSpeak 作为默认声音。</div>
+      <div class="hint"><b>V14静态高品质MP3：</b>APP不再现场合成语音。每一句课程英语都对应一个预先生成并存入GitHub的神经美音MP3；手机只负责播放文件。目标格式：48 kHz / 192 kbps MP3。</div>
       <div class="row" style="margin-top:10px">
         <button class="btn primary" id="playAllBtn">▶ 连续播放今日句子</button>
         <label class="small muted">速度
@@ -163,10 +162,9 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
             <option value="1.1">1.1×</option>
           </select>
         </label>
-        <label class="small muted">朗读
+        <label class="small muted">音源
           <select id="speechEngine" style="width:auto;padding:7px">
-            <option value="azure" selected>Jenny神经美音 48k/192k（推荐）</option>
-            <option value="course">本地机械音（仅应急）</option>
+            <option value="hq" selected>高品质静态MP3</option>
           </select>
         </label>
       </div>
@@ -176,19 +174,18 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
       <div class="row space">
         <div>
           <h3 class="section-title" style="margin-bottom:2px">朗读自检</h3>
-          <div class="tiny muted">在线自然音 + 本地备用音的播放状态</div>
+          <div class="tiny muted">检查高品质静态MP3是否已经生成并上传</div>
         </div>
         <button class="btn sm" id="audioRetryBtn">重新加载音频</button>
       </div>
       <div class="grid" style="margin-top:8px">
-        <div class="stat"><b id="naturalVoiceStatus">待试听</b><span>自然在线音</span></div>
         <div class="stat"><b id="audioFileStatus">检查中</b><span>课程音频文件</span></div>
         <div class="stat"><b id="audioMapStatus">检查中</b><span>音频映射表</span></div>
         <div class="stat"><b id="webAudioStatus">检查中</b><span>Web Audio</span></div>
         <div class="stat"><b id="ttsStatus">检查中</b><span>系统TTS</span></div>
         <div class="stat"><b id="audioContextStatus">检查中</b><span>音频上下文</span></div>
       </div>
-      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 试听自然音：Good morning, sleepyhead.</button>
+      <button class="btn primary block" id="audioTestBtn" style="margin-top:10px">▶ 测试第一句高品质MP3</button>
       <div id="audioDiagnosticText" class="hint" style="margin-top:10px">正在初始化朗读模块……</div>
     </div>
   </section>
@@ -307,40 +304,6 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
       <div class="row" style="margin-top:12px"><button class="btn" id="exportBackupBtn">导出备份</button><label class="btn" for="importBackupInput">导入备份</label><input type="file" id="importBackupInput" accept=".json" class="hidden"><button class="btn danger" id="resetBtn">清空数据</button></div>
       <div class="hint" style="margin-top:12px">数据存储在当前手机浏览器/PWA本地。建议每周导出一次JSON备份。</div>
     </div>
-    
-    <div class="card">
-      <h3 class="section-title">高品质神经美音设置</h3>
-      <div class="hint">
-        本APP使用 Microsoft Azure Speech 神经语音。Key 只保存在当前手机浏览器本地，不写入GitHub。<b>不要把Key发到聊天里，也不要提交到GitHub。</b>
-      </div>
-      <label class="small" style="display:block;margin-top:10px">
-        Azure Speech Key
-        <input id="azureSpeechKey" type="password" autocomplete="off" placeholder="粘贴您自己的 Speech Key">
-      </label>
-      <label class="small" style="display:block;margin-top:10px">
-        Azure Region
-        <input id="azureSpeechRegion" type="text" placeholder="例如 eastus">
-      </label>
-      <label class="small" style="display:block;margin-top:10px">
-        美音音色
-        <select id="azureVoiceName">
-          <option value="en-US-JennyNeural" selected>JennyNeural｜标准美音女声</option>
-          <option value="en-US-AvaMultilingualNeural">AvaMultilingualNeural｜自然美音女声</option>
-          <option value="en-US-EmmaNeural">EmmaNeural｜清晰美音女声</option>
-          <option value="en-US-BrianNeural">BrianNeural｜标准美音男声</option>
-        </select>
-      </label>
-      <div class="row" style="margin-top:10px">
-        <button class="btn primary" id="saveAzureBtn">保存语音设置</button>
-        <button class="btn" id="testAzureBtn">▶ 测试 Jenny：Open your eyes.</button>
-      </div>
-      <div class="row" style="margin-top:8px">
-        <button class="btn" id="cacheTodayBtn">生成并缓存今日18句</button>
-        <button class="btn danger" id="clearTtsCacheBtn">清空神经语音缓存</button>
-      </div>
-      <div id="azureStatus" class="hint" style="margin-top:10px">尚未配置 Azure Speech。</div>
-    </div>
-
     <div class="card">
       <h3 class="section-title">安装状态</h3>
       <button class="btn install block" id="installBtn2">安装到手机桌面</button>
@@ -376,7 +339,7 @@ input[type=text],input[type=date],input[type=number],textarea,select{width:100%;
 <div class="toast hidden" id="toast"></div>
 
 <script src="./daily180.js?v=10.0"></script>
-<script src="./audio-map.js?v=13.0"></script>
-<script src="./app.js?v=13.0"></script>
+<script src="./hq-audio-map.js?v=14.0"></script>
+<script src="./app.js?v=14.0"></script>
 </body>
 </html>

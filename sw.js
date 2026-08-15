@@ -1,6 +1,6 @@
 const PREFIX='mom-english-standalone-';
-const CACHE=PREFIX+'v13.0';
-const ASSETS=['./','./index.html','./daily180.js?v=10.0','./audio-map.js?v=13.0','./app.js?v=13.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE=PREFIX+'v14.0';
+const ASSETS=['./','./index.html','./daily180.js?v=10.0','./hq-audio-map.js?v=14.0','./app.js?v=14.0','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
 self.addEventListener('install',event=>{
   self.skipWaiting();
@@ -15,7 +15,7 @@ self.addEventListener('activate',event=>{
 self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET') return;
   const url=new URL(event.request.url);
-  if(url.pathname.indexOf('/audio/')>=0 || url.pathname.endsWith('/speech_us.mp3')){
+  if(url.pathname.indexOf('/hq_audio/')>=0 || url.pathname.indexOf('/audio/')>=0 || url.pathname.endsWith('/speech_us.mp3')){
     return; // Let browser/network handle the full audio file directly; no SW caching/range interference.
   }
   if(event.request.mode==='navigate'){
