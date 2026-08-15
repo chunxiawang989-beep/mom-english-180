@@ -150,7 +150,7 @@ function playStaticHQ(text){
         try{hqCurrentAudio.pause();}catch(e){}
         hqCurrentAudio=null;
       }
-      var a=new Audio("./"+item.file+"?v=14");
+      var a=new Audio("./"+item.file+"?v=14.1");
       hqCurrentAudio=a;
       a.preload="auto";
       a.playbackRate=getRate();
@@ -192,7 +192,7 @@ function initAudioDiagnostics(){
     diagnostic("V14代码已就绪。下一步先生成Day 1的真实高品质MP3进行试听。");
     return;
   }
-  fetch("./"+item.file+"?v=14",{method:"HEAD",cache:"no-store"})
+  fetch("./"+item.file+"?v=14.1",{method:"HEAD",cache:"no-store"})
     .then(function(resp){
       if(!resp.ok)throw new Error("http-"+resp.status);
       setStatus("audioFileStatus","已就绪",true);
@@ -206,30 +206,6 @@ function initAudioDiagnostics(){
 
 function speak(text){ return speakAsync(text); }
 window.speakPhrase=speak;
-
-function initAudioDiagnostics(){
-  var map=(typeof AUDIO_MAP!=="undefined" && AUDIO_MAP) ? AUDIO_MAP : (window.APP_AUDIO_MAP||{});
-  var mapCount=Object.keys(map).length;
-  var testText=(DAILY180[0]&&DAILY180[0].phrases&&DAILY180[0].phrases[0])?DAILY180[0].phrases[0][0]:"Good morning, sleepyhead.";
-  var testKey=audioKey(testText);
-  var mapOK=mapCount>0 && !!map[testKey];
-  setStatus("audioMapStatus",mapOK?(mapCount+"句"):"缺失",mapOK);
-  if(!mapOK){
-    diagnostic("音频映射表未正确加载。请确认 audio-map.js 已上传并刷新页面。");
-  }
-  var supportsTTS=("speechSynthesis" in window)&&!!window.SpeechSynthesisUtterance;
-  setStatus("ttsStatus",supportsTTS?"可用":"不支持",supportsTTS);
-  var ctx=getAudioContext();
-  if(ctx){
-    setStatus("webAudioStatus","可用",true);
-    setStatus("audioContextStatus",ctx.state||"已创建",ctx.state==="running");
-    loadCourseAudio(false).catch(function(){});
-  }else{
-    setStatus("webAudioStatus","不支持",false);
-    setStatus("audioContextStatus","不可用",false);
-    diagnostic("当前浏览器连 Web Audio API 都不支持。请把这个页面截图给我。");
-  }
-}
 
 
 var recorder=null, chunks=[];
