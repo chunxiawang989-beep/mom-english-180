@@ -1,10 +1,10 @@
-name: 生成高品质MP3
+name: 生成高品质MP3（免Azure）
 
 on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "先生成Day1试听；满意后再选all"
+        description: "先生成Day1试听；满意后再生成全部"
         required: true
         default: "day1"
         type: choice
@@ -12,14 +12,15 @@ on:
           - day1
           - all
       voice:
-        description: "标准美国英语音色"
+        description: "美音女声；auto会自动选择可用的优质en-US女声"
         required: true
-        default: "en-US-AvaMultilingualNeural"
+        default: "auto"
         type: choice
         options:
-          - en-US-AvaMultilingualNeural
-          - en-US-EmmaMultilingualNeural
+          - auto
+          - en-US-AvaNeural
           - en-US-JennyNeural
+          - en-US-AriaNeural
 
 permissions:
   contents: write
@@ -30,8 +31,6 @@ jobs:
     timeout-minutes: 180
 
     env:
-      AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
-      AZURE_SPEECH_REGION: ${{ secrets.AZURE_SPEECH_REGION }}
       SCOPE: ${{ inputs.scope }}
       VOICE: ${{ inputs.voice }}
 
@@ -39,7 +38,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate high-quality MP3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Edge TTS
+        run: pip install edge-tts==7.2.8
+
+      - name: Generate static MP3 files
         run: python3 scripts/generate_hq_audio.py
 
       - name: Verify generated MP3 files
@@ -55,11 +62,11 @@ jobs:
           print("Verified MP3 files:", len(files))
           PY
 
-      - name: Commit generated MP3 files
+      - name: Commit actual MP3 files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add hq_audio hq-audio-map.js
           git diff --cached --quiet && exit 0
-          git commit -m "Generate high-quality American English MP3"
+          git commit -m "Generate static natural American English MP3 audio"
           git push
