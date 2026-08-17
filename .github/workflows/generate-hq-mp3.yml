@@ -1,1 +1,65 @@
+name: 生成高品质MP3
 
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "先生成Day1试听；满意后再选all"
+        required: true
+        default: "day1"
+        type: choice
+        options:
+          - day1
+          - all
+      voice:
+        description: "标准美国英语音色"
+        required: true
+        default: "en-US-AvaMultilingualNeural"
+        type: choice
+        options:
+          - en-US-AvaMultilingualNeural
+          - en-US-EmmaMultilingualNeural
+          - en-US-JennyNeural
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    env:
+      AZURE_SPEECH_KEY: ${{ secrets.AZURE_SPEECH_KEY }}
+      AZURE_SPEECH_REGION: ${{ secrets.AZURE_SPEECH_REGION }}
+      SCOPE: ${{ inputs.scope }}
+      VOICE: ${{ inputs.voice }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate high-quality MP3
+        run: python3 scripts/generate_hq_audio.py
+
+      - name: Verify generated MP3 files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          files = list(Path("hq_audio").glob("*.mp3"))
+          if not files:
+              raise SystemExit("No MP3 generated")
+          bad = [str(p) for p in files if p.stat().st_size < 1500]
+          if bad:
+              raise SystemExit("Invalid MP3 files: " + str(bad[:10]))
+          print("Verified MP3 files:", len(files))
+          PY
+
+      - name: Commit generated MP3 files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hq_audio hq-audio-map.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Generate high-quality American English MP3"
+          git push
